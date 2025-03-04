@@ -1,0 +1,54 @@
+<!-- TechnicalRequirementsセクション内のLibraryGroupsを更新 -->
+<LibraryGroups>
+  <Group name="ランチャー (.NET/WinForms)">
+    <Library>
+      <Name>System.IO.FileSystemWatcher</Name>
+      <Purpose>ファイル変更監視</Purpose>
+      <Installation>標準ライブラリ（別途インストール不要）</Installation>
+    </Library>
+    <Library>
+      <Name>System.Drawing</Name>
+      <Purpose>画像処理・メタデータ操作</Purpose>
+      <Installation>標準ライブラリ（別途インストール不要）</Installation>
+      <Usage>PNG画像の読み書きとEXIF情報の操作</Usage>
+    </Library>
+    <Library>
+      <Name>System.Drawing.Imaging</Name>
+      <Purpose>EXIF処理</Purpose>
+      <Installation>標準ライブラリ（別途インストール不要）</Installation>
+    </Library>
+    <Library>
+      <Name>Newtonsoft.Json</Name>
+      <Purpose>設定ファイル読み書き・シリアライズ</Purpose>
+      <Installation>Install-Package Newtonsoft.Json</Installation>
+    </Library>
+  </Group>
+</LibraryGroups>
+
+<!-- MetadataServiceの実装方針を更新 -->
+<Services>
+  <Service>
+    <Name>MetadataService</Name>
+    <Description>EXIFメタデータ操作を担当</Description>
+    <Implementation>
+      <Method>System.Drawing.Imaging名前空間を使用</Method>
+      <Features>
+        <Feature>PropertyItem操作によるEXIF情報の読み書き</Feature>
+        <Feature>一時ファイル処理の簡素化</Feature>
+        <Feature>既存APIとの互換性維持</Feature>
+      </Features>
+    </Implementation>
+  </Service>
+</Services>
+
+<!-- DataFlowセクションも更新 -->
+<DataFlow>
+  <Step>ファイル監視サービスが新規ファイル作成を検出</Step>
+  <Step>ファイル準備完了状態を確認</Step>
+  <Step>System.Drawing.Imageを使用して画像を読み込み</Step>
+  <Step>現在のワールド情報とタイムスタンプに基づくEXIFデータを生成</Step>
+  <Step>PropertyItemを使用してEXIFメタデータを付与</Step>
+  <Step>変更済み画像を保存</Step>
+  <Step>フォルダ分け設定に従って移動</Step>
+  <Step>ログにプロセス完了を記録</Step>
+</DataFlow>
