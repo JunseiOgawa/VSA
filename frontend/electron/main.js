@@ -1,8 +1,12 @@
 const { app, BrowserWindow, ipcMain } = require('electron');
-const isDev = require('electron-is-dev');
 const path = require('path');
 const { spawn } = require('child_process');
 const fs = require('fs');
+
+// 代わりに以下のコードを使用
+const isDev = !app.isPackaged;
+// または
+// const isDev = process.env.NODE_ENV === 'development';
 
 // Flaskサーバープロセス
 let flaskProcess = null;
@@ -43,7 +47,7 @@ function createWindow() {
       flaskProcess = null;
     }
     // ランチャー再起動フラグの作成
-    fs.writeFileSync(path.join(app.getPath('userData'), '.launcher_reactivate'), '');
+    fs.writeFileSync(path.join(app.getPath('userData'), '.launcher_reactivate'), 'closed');
   });
 }
 
@@ -85,8 +89,7 @@ ipcMain.handle('call-api', async (event, { endpoint, method, data }) => {
 
 app.on('ready', () => {
   startFlaskServer();
-  // 少し待ってからウィンドウを作成（Flaskサーバーの起動を待つ）
-  setTimeout(createWindow, 1000);
+  createWindow();
 });
 
 app.on('window-all-closed', () => {

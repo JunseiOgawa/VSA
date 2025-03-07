@@ -1,19 +1,29 @@
-const { ipcRenderer, contextBridge } = require('electron');
+// Electron preloadスクリプト - レンダラープロセスとメインプロセスの安全な通信のため
 
-// ReactアプリケーションとElectron間のAPIブリッジ
-contextBridge.exposeInMainWorld('electronAPI', {
-  // Flask APIを呼び出すメソッド
-  callApi: (endpoint, method, data) => {
+const { contextBridge, ipcRenderer } = require('electron');
+
+// APIをウィンドウオブジェクトに安全に公開
+contextBridge.exposeInMainWorld('vrcArchiveAPI', {
+  // バックエンドAPIの呼び出し
+  callAPI: (endpoint, method, data) => {
     return ipcRenderer.invoke('call-api', { endpoint, method, data });
   },
   
-  // 設定の読み込み
-  loadSettings: () => {
-    return ipcRenderer.invoke('load-settings');
+  // アプリ情報の取得
+  getAppInfo: () => {
+    return {
+      version: '1.0.0',
+      electronVersion: process.versions.electron,
+      chromeVersion: process.versions.chrome,
+      nodeVersion: process.versions.node,
+    };
   },
   
-  // 設定の保存
-  saveSettings: (settings) => {
-    return ipcRenderer.invoke('save-settings', settings);
+  // アプリケーションイベント
+  onStatusUpdate: (callback) => {
+    ipcRenderer.on('status-update', (event, data) => callback(data));
   }
 });
+
+// 読み込み完了メッセージ
+console.log('Preload script loaded successfully');

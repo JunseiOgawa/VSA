@@ -222,7 +222,7 @@
             fileSubdivision_checkBox.AutoSize = true;
             fileSubdivision_checkBox.Checked = true;
             fileSubdivision_checkBox.CheckState = CheckState.Checked;
-            fileSubdivision_checkBox.Location = new Point(12, 134);
+            fileSubdivision_checkBox.Location = new Point(12, 188);
             fileSubdivision_checkBox.Name = "fileSubdivision_checkBox";
             fileSubdivision_checkBox.Size = new Size(182, 19);
             fileSubdivision_checkBox.TabIndex = 11;
@@ -246,12 +246,13 @@
             fileSubdivision_Group.Controls.Add(dayRadio_Button);
             fileSubdivision_Group.Controls.Add(weekRadio_Button);
             fileSubdivision_Group.Controls.Add(monthRadio_Button);
-            fileSubdivision_Group.Location = new Point(12, 159);
+            fileSubdivision_Group.Location = new Point(12, 213);
             fileSubdivision_Group.Name = "fileSubdivision_Group";
             fileSubdivision_Group.Size = new Size(207, 44);
             fileSubdivision_Group.TabIndex = 13;
             fileSubdivision_Group.TabStop = false;
             fileSubdivision_Group.Text = "フォルダ分け";
+            fileSubdivision_Group.Enter += fileSubdivision_Group_Enter;
             // 
             // dayRadio_Button
             // 
@@ -291,34 +292,36 @@
             checkBox3.AutoSize = true;
             checkBox3.Checked = true;
             checkBox3.CheckState = CheckState.Checked;
-            checkBox3.Location = new Point(12, 209);
+            checkBox3.Location = new Point(12, 134);
             checkBox3.Name = "checkBox3";
             checkBox3.Size = new Size(135, 19);
             checkBox3.TabIndex = 14;
             checkBox3.Text = "ファイル名をリネームする";
             checkBox3.UseVisualStyleBackColor = true;
+            checkBox3.CheckedChanged += checkBox3_CheckedChanged_1;
             // 
             // fileRename_comboBox
             // 
             fileRename_comboBox.FormattingEnabled = true;
             fileRename_comboBox.Items.AddRange(new object[] { "年_月_日_時分_連番", "年月日_時分_連番", "年-月-日-曜日-時分-連番", "日-月-年-時分-連番", "月-日-年-時分-連番", "年.月.日.時分.連番", "時分_年月日_連番" });
-            fileRename_comboBox.Location = new Point(12, 234);
+            fileRename_comboBox.Location = new Point(12, 159);
             fileRename_comboBox.Name = "fileRename_comboBox";
-            fileRename_comboBox.Size = new Size(248, 23);
+            fileRename_comboBox.Size = new Size(162, 23);
             fileRename_comboBox.TabIndex = 15;
+            fileRename_comboBox.SelectedIndexChanged += fileRename_comboBox_SelectedIndexChanged_1;
             // 
             // fileRename_pictureBox
             // 
-            fileRename_pictureBox.Location = new Point(337, 188);
+            fileRename_pictureBox.Location = new Point(230, 134);
             fileRename_pictureBox.Name = "fileRename_pictureBox";
-            fileRename_pictureBox.Size = new Size(40, 40);
+            fileRename_pictureBox.Size = new Size(30, 30);
             fileRename_pictureBox.TabIndex = 16;
             fileRename_pictureBox.TabStop = false;
             // 
             // fileRename_label
             // 
             fileRename_label.AutoSize = true;
-            fileRename_label.Location = new Point(279, 237);
+            fileRename_label.Location = new Point(198, 167);
             fileRename_label.Name = "fileRename_label";
             fileRename_label.Size = new Size(104, 15);
             fileRename_label.TabIndex = 18;
@@ -393,5 +396,9 @@
         private ComboBox fileRename_comboBox;
         private PictureBox fileRename_pictureBox;
         private Label fileRename_label;
+        private void fileRename_comboBox_SelectedIndexChanged_1(object sender, EventArgs e)
+        {
+            // Add your event handling code here
+        }
     }
 }

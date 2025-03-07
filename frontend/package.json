@@ -1,6 +1,8 @@
 {
-  "name": "frontend",
-  "version": "0.1.0",
+  "name": "vrc-snap-archive",
+  "version": "1.0.0",
+  "description": "VRChat Screenshot Archive Manager",
+  "main": "electron/main.js",
   "private": true,
   "dependencies": {
     "@emotion/react": "^11.14.0",
@@ -12,6 +14,7 @@
     "@testing-library/react": "^16.2.0",
     "@testing-library/user-event": "^13.5.0",
     "axios": "^1.8.1",
+    "electron-is-dev": "^3.0.1",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-router-dom": "^7.2.0",
@@ -19,7 +22,12 @@
     "web-vitals": "^2.1.4"
   },
   "scripts": {
-    "start": "react-scripts start",
+    "start": "electron .",
+    "start-test": "electron test-electron.js",
+    "start-silent": "electron test-electron.js --no-window",
+    "start-dev": "electron .",
+    "dev": "react-scripts start",
+    "electron-dev": "concurrently \"npm run dev\" \"wait-on http://localhost:3000 && electron .\"",
     "build": "react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject"
@@ -43,6 +51,8 @@
     ]
   },
   "devDependencies": {
-    "electron": "^34.3.0"
+    "concurrently": "^9.1.2",
+    "electron": "^34.3.0",
+    "wait-on": "^8.0.2"
   }
 }

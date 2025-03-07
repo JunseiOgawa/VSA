@@ -1,12 +1,5 @@
-using System;
-using System.Drawing;
-using System.IO;
-using System.Windows.Forms;
-using System.Threading.Tasks;
-using System.Threading;
-using System.Text.RegularExpressions; // 追加
-using System.Linq; // 追加
-using System.Collections.Generic; // Dictionary用に追加
+using System.Diagnostics; // Process関連の操作のため
+using System.Text.RegularExpressions;
 
 namespace VSA_launcher
 {
@@ -30,7 +23,7 @@ namespace VSA_launcher
                 InitializeComponent();
                 _settings = SettingsManager.LoadSettings();
                 _systemTrayIcon = new SystemTrayIcon(this);
-                
+
                 // ファイル監視サービスの初期化 - 設定を渡す
                 _fileWatcher = new FileWatcherService();
                 _fileWatcher.StatusChanged += FileWatcher_StatusChanged;
@@ -49,12 +42,12 @@ namespace VSA_launcher
                 weekRadio_Button.CheckedChanged += radioButton_CheckedChanged;
                 dayRadio_Button.CheckedChanged += radioButton_CheckedChanged;
                 fileSubdivision_checkBox.CheckedChanged += checkBox3_CheckedChanged;
-                
+
                 // ファイル名フォーマットのコンボボックス変更イベント追加
                 if (fileRename_comboBox != null)
                 {
                     fileRename_comboBox.SelectedIndexChanged += FileRename_ComboBox_SelectedIndexChanged;
-                    
+
                     // コンボボックスの初期化（値がまだ設定されていない場合）
                     if (fileRename_comboBox.Items.Count == 0)
                     {
@@ -72,9 +65,9 @@ namespace VSA_launcher
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"アプリケーション初期化エラー: {ex.Message}\n\nスタックトレース: {ex.StackTrace}", 
-                               "起動エラー", 
-                               MessageBoxButtons.OK, 
+                MessageBox.Show($"アプリケーション初期化エラー: {ex.Message}\n\nスタックトレース: {ex.StackTrace}",
+                               "起動エラー",
+                               MessageBoxButtons.OK,
                                MessageBoxIcon.Error);
                 Application.Exit();
             }
@@ -93,13 +86,13 @@ namespace VSA_launcher
             fileRename_comboBox.Items.Add("月-日-年-時分-連番"); // インデックス5
             fileRename_comboBox.Items.Add("年.月.日.時分.連番"); // インデックス6
             fileRename_comboBox.Items.Add("時分_年月日_連番"); // インデックス7
-            
+
             // 設定に基づいて選択項目を設定
             bool enabled = _settings.FileRenaming.Enabled;
             string format = _settings.FileRenaming.Format;
-            
+
             int selectedIndex = 0; // デフォルトは「変更しない」
-            
+
             if (enabled)
             {
                 // フォーマットに基づいて適切なインデックスを選択
@@ -115,22 +108,22 @@ namespace VSA_launcher
                     default: selectedIndex = 0; break;
                 }
             }
-            
+
             fileRename_comboBox.SelectedIndex = selectedIndex;
-            
+
             // ラベル初期更新
             UpdateFileRenamePreviewLabel();
         }
-        
+
         // コンボボックス変更イベントハンドラ
         private void FileRename_ComboBox_SelectedIndexChanged(object sender, EventArgs e)
         {
             // 選択されたインデックスに基づいて設定を更新
             int selectedIndex = fileRename_comboBox.SelectedIndex;
-            
+
             // 名前変更が有効かどうか（0以外なら有効）
             _settings.FileRenaming.Enabled = (selectedIndex != 0);
-            
+
             // フォーマットの更新
             switch (selectedIndex)
             {
@@ -143,54 +136,54 @@ namespace VSA_launcher
                 case 7: _settings.FileRenaming.Format = "HHmm_yyyyMMdd_seq"; break;
                 default: _settings.FileRenaming.Format = ""; break;
             }
-            
+
             // 設定を保存
             SettingsManager.SaveSettings(_settings);
-            
+
             // プレビューラベルを更新
             UpdateFileRenamePreviewLabel();
         }
-        
+
         // プレビューラベルの更新
         private void UpdateFileRenamePreviewLabel()
         {
             if (fileRename_label == null) return;
-            
+
             // 選択されたインデックス
             int selectedIndex = fileRename_comboBox.SelectedIndex;
-            
+
             if (selectedIndex == 0)
             {
                 // 名前変更なしの場合
                 fileRename_label.Text = "ファイル名はそのまま保持されます";
                 return;
             }
-            
+
             // 現在の日時を取得
             DateTime now = DateTime.Now;
-            
+
             // フォーマット文字列を取得
             string format = _settings.FileRenaming.Format;
-            
+
             // 特殊なフォーマット処理
             string fileName = now.ToString(format);
-            
+
             // 曜日の処理（ddd を日本語曜日に置換）
             if (format.Contains("ddd"))
             {
                 string[] dayOfWeekJp = { "日", "月", "火", "水", "木", "金", "土" };
                 fileName = fileName.Replace("ddd", dayOfWeekJp[(int)now.DayOfWeek]);
             }
-            
+
             // 連番を仮の数字に置換
             if (format.Contains("seq"))
             {
                 fileName = fileName.Replace("seq", "001");
             }
-            
+
             // 拡張子を付加
             fileName = $"{fileName}.png";
-            
+
             // ラベルに表示
             fileRename_label.Text = $"例: {fileName}";
         }
@@ -199,10 +192,10 @@ namespace VSA_launcher
         {
             // 設定を読み込み、UIに反映
             ApplySettingsToUI();
-            
+
             // 初期状態のステータス表示
             UpdateStatusInfo("アプリケーション初期化完了", "監視準備中...");
-            
+
             // スクリーンショットフォルダが設定済みなら監視を開始
             if (!string.IsNullOrEmpty(_settings.ScreenshotPath) && Directory.Exists(_settings.ScreenshotPath))
             {
@@ -219,12 +212,12 @@ namespace VSA_launcher
             // パス設定
             screenShotFile_textBox.Text = _settings.ScreenshotPath;
             outPut_textBox.Text = _settings.OutputPath;
-            
+
             // チェックボックス
             metadataEnabled_checkBox.Checked = _settings.Metadata.Enabled;
             fileSubdivision_checkBox.Checked = _settings.FolderStructure.Enabled;
             monthCompression_checkBox.Checked = _settings.Compression.AutoCompress;
-            
+
             // フォルダ分け設定（ラジオボタン）
             switch (_settings.FolderStructure.Type)
             {
@@ -238,13 +231,13 @@ namespace VSA_launcher
                     dayRadio_Button.Checked = true;
                     break;
             }
-            
+
             // ファイル名フォーマットのコンボボックスを更新
             if (fileRename_comboBox != null)
             {
                 InitializeFileRenameComboBox();
             }
-            
+
             // フォルダ分けグループのUI状態
             fileSubdivision_Group.Enabled = fileSubdivision_checkBox.Checked;
         }
@@ -256,7 +249,7 @@ namespace VSA_launcher
                 screenShotFile_textBox.Text = screenshotFolderBrowser.SelectedPath;
                 _settings.ScreenshotPath = screenshotFolderBrowser.SelectedPath;
                 SettingsManager.SaveSettings(_settings);
-                
+
                 // フォルダ設定後に監視を開始
                 StartWatching();
             }
@@ -268,7 +261,7 @@ namespace VSA_launcher
                 outPut_textBox.Text = outputFolderBrowser.SelectedPath;
                 _settings.OutputPath = outputFolderBrowser.SelectedPath;
                 SettingsManager.SaveSettings(_settings);
-                
+
                 // ステータス更新
                 UpdateStatusInfo("出力先フォルダを設定しました", $"フォルダ: {_settings.OutputPath}");
             }
@@ -292,7 +285,7 @@ namespace VSA_launcher
             _settings.Compression.AutoCompress = monthCompression_checkBox.Checked;
             SettingsManager.SaveSettings(_settings);
         }
-        
+
         private void radioButton_CheckedChanged(object? sender, EventArgs e)
         {
             if (monthRadio_Button.Checked)
@@ -301,10 +294,10 @@ namespace VSA_launcher
                 _settings.FolderStructure.Type = "week";
             else if (dayRadio_Button.Checked)
                 _settings.FolderStructure.Type = "day";
-                
+
             SettingsManager.SaveSettings(_settings);
         }
-        
+
         // ステータス表示の更新
         public void UpdateStatusInfo(string statusMessage, string fileStatusMessage)
         {
@@ -314,26 +307,267 @@ namespace VSA_launcher
                 BeginInvoke(new Action(() => UpdateStatusInfo(statusMessage, fileStatusMessage)));
                 return;
             }
-            
+
             startingState_toolStripStatusLabel.Text = statusMessage;
             fileStatus_toolStripStatusLabel1.Text = fileStatusMessage;
         }
-        
+
         // 処理状態の更新
         public void UpdateProcessingStats(int detected, int processed, int errors)
         {
             _detectedFilesCount = detected;
             _processedFilesCount = processed;
             _errorCount = errors;
-            
+
             // ファイル統計表示の更新
             UpdateStatusInfo($"監視中: {detected}ファイル", $"処理済: {processed} エラー: {errors}");
         }
-        
+
         // メインアプリ起動
-        private void LaunchMainApplication()
+        // publicに変更してSystemTrayIconからアクセスできるようにする
+        public void LaunchMainApplication()
+        {   
+            // 起動前にアプリが既に実行中かチェック
+            if (IsMainAppRunning())
+            {
+                MessageBox.Show("メインアプリケーションは既に実行中です。", 
+                                "情報", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+            
+            try
+            {
+                string currentDirectory = AppDomain.CurrentDomain.BaseDirectory;
+                string solutionRoot = Path.GetFullPath(Path.Combine(currentDirectory, @"..\..\..")); 
+                
+                // デバッグモードかどうかを確認
+                bool isDebugMode = false;
+                #if DEBUG
+                    isDebugMode = true;
+                #endif
+                
+                // frontendディレクトリのパス - プロジェクトと同階層の"frontend"ディレクトリを指定
+                string frontendPath = Path.Combine(
+                    Path.GetDirectoryName(Path.GetDirectoryName(solutionRoot)), // ソリューションの2階層上に移動
+                    "frontend"
+                );
+                
+                // frontendディレクトリが存在しない場合は、カレントディレクトリの隣の"frontend"も試す
+                if (!Directory.Exists(frontendPath))
+                {
+                    frontendPath = Path.Combine(
+                        Path.GetDirectoryName(solutionRoot), // ソリューションの1階層上に移動
+                        "frontend"
+                    );
+                }
+                
+                // それでも見つからない場合は、一般的な場所を試す
+                if (!Directory.Exists(frontendPath))
+                {
+                    frontendPath = Path.Combine(Directory.GetCurrentDirectory(), "frontend");
+                }
+                
+                // 最終確認 - フロントエンドディレクトリが存在するか確認
+                if (!Directory.Exists(frontendPath))
+                {
+                    MessageBox.Show($"フロントエンドディレクトリが見つかりません。\n以下のパスを確認してください:\n{frontendPath}", 
+                        "エラー", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return;
+                }
+                
+                // デバッグ情報表示
+                Debug.WriteLine($"現在のディレクトリ: {currentDirectory}");
+                Debug.WriteLine($"ソリューションルート: {solutionRoot}");
+                Debug.WriteLine($"フロントエンドパス: {frontendPath}");
+                
+                ProcessStartInfo startInfo = new ProcessStartInfo();
+                
+                if (isDebugMode)
+                {
+                    // 開発環境: npmコマンドを実行
+                    startInfo.FileName = "cmd.exe";
+                    startInfo.Arguments = $"/c cd /d \"{frontendPath}\" && echo フロントエンド起動中... && npm run start";
+                    startInfo.UseShellExecute = false; // シェルを使わない
+                    startInfo.CreateNoWindow = true;   // コンソールウィンドウを表示しない
+                    startInfo.RedirectStandardOutput = true; // 出力をリダイレクト
+                    
+                    // Electronコマンドが失敗した場合のフォールバック
+                    if (!File.Exists(Path.Combine(frontendPath, "node_modules", "electron", "dist", "electron.exe")))
+                    {
+                        startInfo.Arguments = $"/c cd /d \"{frontendPath}\" && echo モジュールインストール中... && npm install && echo フロントエンド起動中... && npm run start";
+                    }
+                }
+                else
+                {
+                    // 本番環境: 実行ファイルを起動
+                    string exePath = Path.Combine(frontendPath, "VrcSnapArchive.exe");
+                    if (!File.Exists(exePath))
+                    {
+                        exePath = Path.Combine(frontendPath, "SnapArchiveKai.exe");
+                    }
+                    
+                    // まだ見つからない場合はテスト用Electronファイルを使用
+                    // EXEファイルが見つからない場合は通常のElectronアプリを起動
+                    if (!File.Exists(exePath))
+                    {
+                        startInfo.FileName = "cmd.exe";
+                        // test-electron.jsではなく、package.jsonで定義されたnpm startを使用
+                        startInfo.Arguments = $"/c cd /d \"{frontendPath}\" && npm run start";
+                        startInfo.UseShellExecute = false; // シェルを使わない
+                        startInfo.CreateNoWindow = true;   // コンソールウィンドウを表示しない
+                        startInfo.RedirectStandardOutput = true; // 出力をリダイレクト
+                    }
+                    else
+                    {
+                        startInfo.FileName = exePath;
+                        startInfo.UseShellExecute = true; // EXEファイルの場合はシェルを使う
+                    }
+                }
+                
+                // プロセスを起動
+                Process process;
+                
+                if (startInfo.RedirectStandardOutput)
+                {
+                    // 出力をリダイレクトしている場合は別の方法で起動
+                    process = new Process { StartInfo = startInfo };
+                    process.Start();
+                }
+                else
+                {
+                    // 通常の起動
+                    process = Process.Start(startInfo);
+                }
+                
+                // ステータス表示を更新
+                UpdateStatusInfo("メインアプリケーション起動", "Electronアプリを起動しました");
+                
+                // 起動ボタンの状態を更新
+                UpdateLaunchButtonState();
+                
+                // システムトレイに通知
+                notifyIcon.ShowBalloonTip(3000, "VRC SnapArchive", "メインアプリケーションを起動しました", ToolTipIcon.Info);
+                
+                // ランチャーをシステムトレイに格納（非表示化）
+                Hide();
+                
+                // デバッグモードの場合はプロセス終了を監視
+                if (process != null)
+                {
+                    Task.Run(() => {
+                        try {
+                            process.WaitForExit();
+                            BeginInvoke(new Action(() => {
+                                UpdateStatusInfo("Electronアプリ", "アプリが終了しました");
+                                // アプリ終了時にボタン状態も更新
+                                UpdateLaunchButtonState();
+                                 Show();
+                                 // ウィンドウを最小化から元の状態に戻す
+                                WindowState = FormWindowState.Normal;
+                            }));
+                        } catch (Exception ex) {
+                            Debug.WriteLine($"プロセス監視エラー: {ex.Message}");
+                        }
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"メインアプリケーションの起動に失敗しました。\n\n{ex.Message}", 
+                    "エラー", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                
+                // エラーログ記録
+                Debug.WriteLine($"アプリ起動エラー: {ex}");
+            }
+        }
+
+        /// <summary>
+        /// 起動ボタンの状態を更新
+        /// </summary>
+        private void UpdateLaunchButtonState()
         {
-            _systemTrayIcon.LaunchMainApplication();
+            bool isRunning = IsMainAppRunning();
+            
+            // UIスレッドでの実行を保証
+            if (InvokeRequired)
+            {
+                BeginInvoke(new Action(UpdateLaunchButtonState));
+                return;
+            }
+
+            // ボタンの状態を更新
+            launchMainApp_button.Enabled = !isRunning;
+            launchMainApp_button.Text = isRunning ? "アプリ実行中" : "アプリを起動する";
+            
+            // システムトレイのメニュー項目も更新
+            メインアプリケーションを起動ToolStripMenuItem.Enabled = !isRunning;
+            メインアプリケーションを起動ToolStripMenuItem.Text = isRunning ? "アプリ実行中" : "メインアプリケーションを起動";
+        }
+
+        private bool IsMainAppRunning()
+        {
+            try
+            {
+                // 専用のプロセス名で検索
+                string[] exactProcessNames = new[] { "SnapArchiveKai", "VrcSnapArchive" };
+                foreach (string processName in exactProcessNames)
+                {
+                    if (Process.GetProcessesByName(processName).Length > 0)
+                    {
+                        return true;
+                    }
+                }
+
+                // Electronプロセスを検索し、起動引数をチェック
+                Process[] electronProcesses = Process.GetProcessesByName("electron");
+                if (electronProcesses.Length > 0)
+                {
+                    // 相互排他ロックファイルの存在確認
+                    string lockFilePath = Path.Combine(
+                        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                        "SnapArchiveKai",
+                        ".app_running");
+                        
+                    if (File.Exists(lockFilePath))
+                    {
+                        try
+                        {
+                            // ファイルの最終更新時間が5分以内なら実行中と判断
+                            if ((DateTime.Now - File.GetLastWriteTime(lockFilePath)).TotalMinutes < 5)
+                            {
+                                return true;
+                            }
+                        }
+                        catch
+                        {
+                            // ファイルアクセスエラーは無視
+                        }
+                    }
+
+                    // お互いに排他的なミューテックス名を使用（アプリケーション間で共有）
+                    bool createdNew;
+                    using (var mutex = new Mutex(false, "SnapArchiveKaiRunningInstance", out createdNew))
+                    {
+                        // ミューテックスがすでに存在する（獲得できない）なら実行中
+                        if (!createdNew && !mutex.WaitOne(0))
+                        {
+                            return true;
+                        }
+                        
+                        if (!createdNew)
+                        {
+                            mutex.ReleaseMutex();
+                        }
+                    }
+                }
+
+                return false;
+            }
+            catch
+            {
+                // 例外発生時は安全のため実行していないと判断
+                return false;
+            }
         }
 
         protected override void OnFormClosing(FormClosingEventArgs e)
@@ -369,18 +603,18 @@ namespace VSA_launcher
 
             // 通常の単一フォルダ監視かどうかをチェック
             bool isMonthFolderStructure = IsMonthFolderStructure(_settings.ScreenshotPath);
-            
+
             bool success;
-            
+
             if (isMonthFolderStructure)
             {
                 // 月別フォルダ構造を検出した場合、特別な監視を開始
                 success = _fileWatcher.StartWatchingWithMonthFolders(_settings.ScreenshotPath);
-                
+
                 if (success)
                 {
                     string currentMonthFolder = _fileWatcher.CurrentMonthFolder ?? "未検出";
-                    UpdateStatusInfo("月別フォルダ監視開始", 
+                    UpdateStatusInfo("月別フォルダ監視開始",
                         $"親フォルダ: {_settings.ScreenshotPath}, 現在の月: {Path.GetFileName(currentMonthFolder)}");
                 }
             }
@@ -388,7 +622,7 @@ namespace VSA_launcher
             {
                 // 通常の単一フォルダ監視
                 success = _fileWatcher.StartWatching(_settings.ScreenshotPath);
-                
+
                 if (success)
                 {
                     UpdateStatusInfo("監視開始", $"フォルダ: {_settings.ScreenshotPath}");
@@ -403,12 +637,12 @@ namespace VSA_launcher
             {
                 // 指定されたパス内のサブフォルダを取得
                 string[] subFolders = Directory.GetDirectories(folderPath);
-                
+
                 // YYYY-MM 形式のフォルダが2つ以上あれば月別構造と判定
                 int monthFormatFolders = subFolders
                     .Select(Path.GetFileName)
                     .Count(folder => Regex.IsMatch(folder ?? "", @"^\d{4}-\d{2}$"));
-                    
+
                 return monthFormatFolders >= 2;
             }
             catch
@@ -425,7 +659,7 @@ namespace VSA_launcher
                 BeginInvoke(new Action(() => FileWatcher_StatusChanged(sender, e)));
                 return;
             }
-            
+
             UpdateStatusInfo(e.Message, $"監視: {_fileWatcher.DetectedFilesCount} 処理: {_fileWatcher.ProcessedFilesCount} エラー: {_fileWatcher.ErrorCount}");
         }
 
@@ -441,7 +675,7 @@ namespace VSA_launcher
             // 定期的なステータス更新
             if (_fileWatcher.IsWatching)
             {
-                fileStatus_toolStripStatusLabel1.Text = 
+                fileStatus_toolStripStatusLabel1.Text =
                     $"監視: {_fileWatcher.DetectedFilesCount} 処理: {_fileWatcher.ProcessedFilesCount} エラー: {_fileWatcher.ErrorCount}";
             }
         }
@@ -465,52 +699,95 @@ namespace VSA_launcher
 
                 string fileName = Path.GetFileName(sourceFilePath);
                 string destinationFolder = _settings.OutputPath;
+
+                // ソースパスがVRCの月別フォルダ構造かどうか判定
+                bool isSourceMonthStructure = IsMonthFolderStructure(Path.GetDirectoryName(sourceFilePath) ?? "");
                 
-                // フォルダ分けが有効な場合
+                // フォルダ分けが有効かつソースが通常構造の場合
                 if (_settings.FolderStructure.Enabled)
                 {
                     string subFolder;
-                    DateTime now = DateTime.Now;
                     
-                    // 分類タイプに応じてフォルダ名を決定
-                    switch (_settings.FolderStructure.Type)
+                    // ソースが月別フォルダ構造の場合、その構造を維持
+                    if (isSourceMonthStructure)
                     {
-                        case "month":
-                            subFolder = now.ToString("yyyy-MM");
-                            break;
-                        case "week":
-                            // 週番号を取得（文化に依存）
-                            int weekNum = System.Globalization.CultureInfo.CurrentCulture.Calendar.GetWeekOfYear(
-                                now, System.Globalization.CalendarWeekRule.FirstDay, DayOfWeek.Monday);
-                            subFolder = $"{now.Year}-W{weekNum:D2}";
-                            break;
-                        case "day":
-                            subFolder = now.ToString("yyyy-MM-dd");
-                            break;
-                        default:
-                            subFolder = now.ToString("yyyy-MM");
-                            break;
+                        // 親フォルダから月フォルダ名を取得（YYYY-MM形式を想定）
+                        string sourceFolder = Path.GetDirectoryName(sourceFilePath) ?? "";
+                        string monthFolderName = Path.GetFileName(sourceFolder);
+                        
+                        // YYYY-MM形式かどうか確認
+                        if (Regex.IsMatch(monthFolderName, @"^\d{4}-\d{2}$"))
+                        {
+                            destinationFolder = Path.Combine(_settings.OutputPath, monthFolderName);
+                        }
+                        else
+                        {
+                            // 形式が違う場合は現在の月を使用
+                            destinationFolder = Path.Combine(_settings.OutputPath, DateTime.Now.ToString("yyyy-MM"));
+                        }
                     }
-                    
-                    // サブフォルダのフルパス
-                    destinationFolder = Path.Combine(_settings.OutputPath, subFolder);
-                    
+                    else
+                    {
+                        // それ以外のケースでは設定に従ってフォルダ分け
+                        DateTime fileTime = File.GetCreationTime(sourceFilePath); // ファイルの作成日時を使用
+
+                        // 分類タイプに応じてフォルダ名を決定
+                        switch (_settings.FolderStructure.Type)
+                        {
+                            case "month":
+                                subFolder = fileTime.ToString("yyyy-MM");
+                                break;
+                            case "week":
+                                // 週番号を取得（文化に依存）
+                                int weekNum = System.Globalization.CultureInfo.CurrentCulture.Calendar.GetWeekOfYear(
+                                    fileTime, System.Globalization.CalendarWeekRule.FirstDay, DayOfWeek.Monday);
+                                subFolder = $"{fileTime.Year}-W{weekNum:D2}";
+                                break;
+                            case "day":
+                                subFolder = fileTime.ToString("yyyy-MM-dd");
+                                break;
+                            default:
+                                subFolder = fileTime.ToString("yyyy-MM");
+                                break;
+                        }
+
+                        // サブフォルダのフルパス
+                        destinationFolder = Path.Combine(_settings.OutputPath, subFolder);
+                    }
+
                     // フォルダが存在しない場合は作成
                     if (!Directory.Exists(destinationFolder))
                     {
                         Directory.CreateDirectory(destinationFolder);
                     }
                 }
-                
+
                 // 最終的な出力先パス
                 string destinationPath = Path.Combine(destinationFolder, fileName);
-                
+
+                // ファイル名変更が有効な場合は処理
+                if (_settings.FileRenaming.Enabled)
+                {
+                    // 作成日時を取得
+                    DateTime fileCreationTime = File.GetCreationTime(sourceFilePath);
+
+                    // フォーマットに従ってファイル名を生成
+                    string format = _settings.FileRenaming.Format;
+                    string newFileName = GenerateFileName(fileCreationTime, format);
+
+                    // 拡張子を保持
+                    string extension = Path.GetExtension(fileName);
+
+                    // 最終ファイル名の組み立て
+                    destinationPath = Path.Combine(destinationFolder, newFileName + extension);
+                }
+
                 // メタデータ付与はファイル移動前に行う必要がある
                 if (_settings.Metadata.Enabled)
                 {
                     // ログパーサーから最新情報を取得
                     _logParser.ParseLatestLog();
-                    
+
                     // メタデータの作成
                     var metadata = new Dictionary<string, string>
                     {
@@ -519,7 +796,7 @@ namespace VSA_launcher
                         { "CaptureTime", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") },
                         { "VSA", "true" } // 処理済みフラグを追加
                     };
-                    
+
                     // FileWatcherServiceのProcessFileメソッドを呼び出すように修正
                     _fileWatcher.ProcessFile(sourceFilePath, destinationPath, metadata);
                 }
@@ -528,19 +805,75 @@ namespace VSA_launcher
                     // メタデータ無効の場合は直接コピー
                     File.Copy(sourceFilePath, destinationPath, true);
                 }
-                
+
                 // UI更新（最後の処理情報などを表示）
-                BeginInvoke(new Action(() => {
+                BeginInvoke(new Action(() =>
+                {
                     UpdateStatusInfo("処理完了", $"最新: {Path.GetFileName(destinationPath)}");
                 }));
             }
             catch (Exception ex)
             {
                 // エラー処理
-                BeginInvoke(new Action(() => {
+                BeginInvoke(new Action(() =>
+                {
                     UpdateStatusInfo("処理エラー", ex.Message);
                 }));
             }
+        }
+
+        /// <summary>
+        /// ファイル名生成（フォーマットに基づく）
+        /// </summary>
+        private string GenerateFileName(DateTime dateTime, string format)
+        {
+            // フォーマットに日付を適用
+            string fileName = dateTime.ToString(format);
+
+            // seq や 連番 を 3桁連番に置き換え
+            if (format.Contains("seq") || format.Contains("連番"))
+            {
+                // 基本ファイル名のパターン作成
+                string pattern = fileName
+                    .Replace("seq", "")
+                    .Replace("連番", "")
+                    + "???";
+
+                // 同じパターンのファイルを検索
+                int counter = 1;
+
+                try
+                {
+                    // 出力先フォルダ内で同じパターンのファイル数をカウント
+                    string searchPattern = Path.GetFileNameWithoutExtension(pattern) + "*.*";
+                    string searchFolder = Path.GetDirectoryName(Path.Combine(_settings.OutputPath, "dummy")) ?? "";
+
+                    if (Directory.Exists(searchFolder))
+                    {
+                        var existingFiles = Directory.GetFiles(searchFolder, searchPattern);
+                        counter = existingFiles.Length + 1;
+                    }
+                }
+                catch
+                {
+                    // エラー時はデフォルトの1を使用
+                    counter = 1;
+                }
+
+                // 連番を3桁の数字で置換
+                fileName = fileName
+                    .Replace("seq", counter.ToString("D3"))
+                    .Replace("連番", counter.ToString("D3"));
+            }
+
+            // ddd を日本語曜日に置換
+            if (format.Contains("ddd"))
+            {
+                string[] dayOfWeekJp = { "日", "月", "火", "水", "木", "金", "土" };
+                fileName = fileName.Replace("ddd", dayOfWeekJp[(int)dateTime.DayOfWeek]);
+            }
+
+            return fileName;
         }
 
         protected override void Dispose(bool disposing)
@@ -553,6 +886,26 @@ namespace VSA_launcher
                 components?.Dispose();
             }
             base.Dispose(disposing);
+        }
+
+        private void fileSubdivision_Group_Enter(object sender, EventArgs e)
+        {
+
+        }
+
+        private void checkBox3_CheckedChanged_1(object sender, EventArgs e)
+        {
+
+        }
+
+        private void メインアプリケーションを起動ToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            LaunchMainApplication();
+        }
+
+        private void launchMainApp_button_Click(object sender, EventArgs e)
+        {
+            LaunchMainApplication();
         }
     }
 
@@ -608,40 +961,8 @@ namespace VSA_launcher
 
         public void LaunchMainApplication()
         {
-            // メインアプリケーション（Electron）の起動処理
-            try
-            {
-                string appPath = Path.Combine(
-                    AppDomain.CurrentDomain.BaseDirectory,
-                    "frontend",
-                    "SnapArchiveKai.exe");
-
-                if (File.Exists(appPath))
-                {
-                    System.Diagnostics.Process.Start(appPath, "--launched-from-launcher");
-                    // フォームを隠す
-                    _mainForm.Hide();
-
-                    // メインアプリのプロセス監視を開始
-                    StartMainAppMonitoring();
-                }
-                else
-                {
-                    MessageBox.Show(
-                        "メインアプリケーションが見つかりません。",
-                        "エラー",
-                        MessageBoxButtons.OK,
-                        MessageBoxIcon.Error);
-                }
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show(
-                    $"メインアプリケーションの起動に失敗しました: {ex.Message}",
-                    "エラー",
-                    MessageBoxButtons.OK,
-                    MessageBoxIcon.Error);
-            }
+            // 独自の実装を削除し、メインフォームの処理を呼び出す
+            _mainForm.LaunchMainApplication();
         }
 
         private void ShowSettings()
@@ -654,10 +975,8 @@ namespace VSA_launcher
 
         private void StartMainAppMonitoring()
         {
-            // メインアプリのプロセス監視（別スレッドで実行）
             Task.Run(() =>
             {
-                // 再起動フラグファイルのパス
                 string flagFilePath = Path.Combine(
                     Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
                     "SnapArchiveKai",
@@ -665,39 +984,38 @@ namespace VSA_launcher
 
                 while (true)
                 {
-    // フラグファイルが存在するか確認
-    if (File.Exists(flagFilePath))
-    {
-        try
-        {
-            // フラグファイルを削除
-            File.Delete(flagFilePath);
+                    // フラグファイルが存在するか確認
+                    if (File.Exists(flagFilePath))
+                    {
+                        try
+                        {
+                            // フラグファイルを削除
+                            File.Delete(flagFilePath);
 
-            // UIスレッドでフォームを表示
-            _mainForm.Invoke(new MethodInvoker(() => {
-                _mainForm.Show();
-                _mainForm.WindowState = FormWindowState.Normal;
-                _mainForm.Activate();
-            }));
-            // 監視終了
-            break;
-        }
-        catch (Exception)
-        {
-            // ファイル削除に失敗した場合は少し待つ 
-            System.Threading.Thread.Sleep(1000);
-        }
-    }
-
-    // 1秒ごとに確認
-    System.Threading.Thread.Sleep(1000);
+                            // UIスレッドでフォームを表示
+                            _mainForm.Invoke(new MethodInvoker(() => {
+                                _mainForm.Show();
+                                _mainForm.WindowState = FormWindowState.Normal;
+                                _mainForm.Activate();
+                            }));
+                            break;
+                        }
+                        catch (Exception)
+                        {
+                            // ファイル削除に失敗した場合は少し待つ
+                            Thread.Sleep(1000);
+                        }
                     }
-                });
-            }
 
-            public void Dispose()
-            {
-                _notifyIcon.Dispose();
-            }
+                    // 1秒ごとに確認
+                    Thread.Sleep(1000);
+                }
+            });
+        }
+
+        public void Dispose()
+        {
+            _notifyIcon.Dispose();
         }
     }
+}
