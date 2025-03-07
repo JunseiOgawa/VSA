@@ -18,9 +18,7 @@ namespace VSA_launcher
         
         // Windows標準ビューアで確認可能なExifタグID
         private const int PropertyTagExifUserComment = 0x9286; // Exifコメントタグ
-        private const int PropertyTagArtist = 0x013B; // 作者情報
         private const int PropertyTagImageDescription = 0x010E; // 画像説明
-        private const int PropertyTagSoftware = 0x0131; // ソフトウェア名
         
         /// <summary>
         /// PNGファイルにメタデータを追加
@@ -106,16 +104,6 @@ namespace VSA_launcher
             SetPropertyItem(image, PropertyTagExifUserComment, jsonData);
             
             // 2. Windowsフォトビューアで表示用のメタデータを設定
-            
-            // ソフトウェア名
-            SetPropertyItem(image, PropertyTagSoftware, "VRC-SnapArchiveKai");
-            
-            // 作者情報（ワールド名）
-            if (metadata.ContainsKey("WorldName") && !string.IsNullOrEmpty(metadata["WorldName"]))
-            {
-                SetPropertyItem(image, PropertyTagArtist, metadata["WorldName"]);
-            }
-            
             // メタデータのサマリーを画像説明として設定
             StringBuilder descBuilder = new StringBuilder();
             descBuilder.AppendLine("VRChat Snap Archive Info:");
@@ -126,6 +114,8 @@ namespace VSA_launcher
                 descBuilder.AppendLine($"ID: {metadata["WorldID"]}");
             if (metadata.ContainsKey("CaptureTime"))
                 descBuilder.AppendLine($"Time: {metadata["CaptureTime"]}");
+            if (metadata.ContainsKey("Friends") && !string.IsNullOrEmpty(metadata["Friends"]))
+                descBuilder.AppendLine($"Friends: {metadata["Friends"]}");
             
             SetPropertyItem(image, PropertyTagImageDescription, descBuilder.ToString());
         }
@@ -164,7 +154,6 @@ namespace VSA_launcher
         /// </summary>
         private static PropertyItem CreatePropertyItem()
         {
-            // .NET Frameworkとそれ以外で異なる対応
             try
             {
                 // .NET Frameworkでの方法
@@ -175,7 +164,6 @@ namespace VSA_launcher
                 // .NET Core/.NET以降での方法
                 using (var tempBitmap = new Bitmap(1, 1))
                 {
-                    // プロパティ項目のダミーを作成して取得
                     var propItem = tempBitmap.PropertyItems[0];
                     return propItem;
                 }
@@ -293,8 +281,17 @@ namespace VSA_launcher
                     logParser.ParseLatestLog();
                 }
                 
-                var metadata = logParser.GenerateMetadata();
+                // VRChatLogParserからのメタデータを取得
+                var metadata = new Dictionary<string, string>
+                {
+                    { "VSACheck", "true" },
+                    { "WorldName", logParser.CurrentWorldName ?? "Unknown" },
+                    { "WorldID", logParser.CurrentWorldId ?? "Unknown" },
+                    { "CaptureTime", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") },
+                    { "Friends", logParser.GetFriendsString() }
+                };
                 
+                // 追加メタデータがあれば合併
                 if (additionalMetadata != null && additionalMetadata.Count > 0)
                 {
                     foreach (var item in additionalMetadata)
@@ -328,15 +325,6 @@ namespace VSA_launcher
             return AddVRChatMetadataToPng(filePath, filePath, logParser, additionalMetadata);
         }
         
-        /// <summary>
-        /// メタデータビューアを表示
-        /// </summary>
-        public static void ShowMetadataViewer(string filePath)
-        {
-            var metadata = ReadMetadataFromPng(filePath);
-            var form = new MetadataViewerForm(filePath, metadata);
-            form.ShowDialog();
-        }
         
         /// <summary>
         /// メタデータをテキストファイルにエクスポート
@@ -611,74 +599,4 @@ namespace VSA_launcher
         }
     }
     
-    /// <summary>
-    /// メタデータビューアフォーム
-    /// </summary>
-    public class MetadataViewerForm : System.Windows.Forms.Form
-    {
-        public MetadataViewerForm(string filePath, Dictionary<string, string> metadata)
-        {
-            InitializeComponent(filePath, metadata);
-        }
-        
-        private void InitializeComponent(string filePath, Dictionary<string, string> metadata)
-        {
-            this.Text = $"PNGメタデータビューア - {Path.GetFileName(filePath)}";
-            this.Size = new System.Drawing.Size(500, 400);
-            this.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen;
-            
-            // PictureBox（画像表示用）
-            var pictureBox = new System.Windows.Forms.PictureBox
-            {
-                SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom,
-                Dock = System.Windows.Forms.DockStyle.Top,
-                Height = 200
-            };
-            pictureBox.Image = Image.FromFile(filePath);
-            
-            // ListView（メタデータ表示用）
-            var listView = new System.Windows.Forms.ListView
-            {
-                View = System.Windows.Forms.View.Details,
-                FullRowSelect = true,
-                GridLines = true,
-                Dock = System.Windows.Forms.DockStyle.Fill
-            };
-            
-            listView.Columns.Add("キー", 150);
-            listView.Columns.Add("値", 300);
-            
-            foreach (var item in metadata)
-            {
-                var listItem = new System.Windows.Forms.ListViewItem(item.Key);
-                listItem.SubItems.Add(item.Value);
-                listView.Items.Add(listItem);
-            }
-            
-            // エクスポートボタン
-            var exportButton = new System.Windows.Forms.Button
-            {
-                Text = "テキストファイルにエクスポート",
-                Dock = System.Windows.Forms.DockStyle.Bottom,
-                Height = 30
-            };
-            exportButton.Click += (sender, e) => 
-            {
-                string exportedFile = PngMetadataManager.ExportMetadataToTextFile(filePath);
-                if (!string.IsNullOrEmpty(exportedFile))
-                {
-                    System.Windows.Forms.MessageBox.Show(
-                        $"メタデータを次のファイルにエクスポートしました:\r\n{exportedFile}", 
-                        "エクスポート成功", 
-                        System.Windows.Forms.MessageBoxButtons.OK, 
-                        System.Windows.Forms.MessageBoxIcon.Information);
-                }
-            };
-            
-            // コントロールを追加
-            this.Controls.Add(listView);
-            this.Controls.Add(pictureBox);
-            this.Controls.Add(exportButton);
-        }
-    }
 }

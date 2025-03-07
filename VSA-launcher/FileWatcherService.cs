@@ -329,6 +329,59 @@ namespace VSA_launcher
         }
 
         /// <summary>
+        /// ファイル処理（外部提供のメタデータを使用）
+        /// </summary>
+        /// <param name="sourceFilePath">元ファイルパス</param>
+        /// <param name="destinationPath">出力先パス</param>
+        /// <param name="customMetadata">カスタムメタデータ</param>
+        public void ProcessFile(string sourceFilePath, string destinationPath, Dictionary<string, string> customMetadata)
+        {
+            try
+            {
+                // 出力先フォルダが存在しない場合は作成
+                string? destinationDir = Path.GetDirectoryName(destinationPath);
+                if (!string.IsNullOrEmpty(destinationDir) && !Directory.Exists(destinationDir))
+                {
+                    Directory.CreateDirectory(destinationDir);
+                }
+                
+                // メタデータ機能が有効かつPNGファイルの場合
+                if (_settings.Metadata.Enabled && IsPngFile(sourceFilePath))
+                {
+                    // 処理済みマーカーの追加（なければ）
+                    if (!customMetadata.ContainsKey(PROCESSED_KEY))
+                    {
+                        customMetadata[PROCESSED_KEY] = "true";
+                    }
+                    
+                    // PngMetadataManagerを使用してメタデータを追加
+                    bool success = PngMetadataManager.AddMetadataToPng(sourceFilePath, destinationPath, customMetadata);
+                    
+                    if (!success)
+                    {
+                        // メタデータ追加に失敗した場合は通常のコピー
+                        File.Copy(sourceFilePath, destinationPath, true);
+                        RaiseStatusChanged($"メタデータ追加失敗: {Path.GetFileName(sourceFilePath)}");
+                    }
+                }
+                else
+                {
+                    // メタデータ処理が無効またはPNG以外の場合は単純コピー
+                    File.Copy(sourceFilePath, destinationPath, true);
+                }
+                
+                // 処理済みファイル数の更新
+                ProcessedFilesCount++;
+            }
+            catch (Exception ex)
+            {
+                ErrorCount++;
+                RaiseStatusChanged($"ファイル処理エラー: {ex.Message}");
+                throw; // 呼び出し元でエラー処理ができるよう例外を再スロー
+            }
+        }
+
+        /// <summary>
         /// 出力先パスを計算（フォルダ構造に基づく）
         /// </summary>
         public string GetTargetPath(string filePath)

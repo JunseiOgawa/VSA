@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using System.Threading;
 using System.Text.RegularExpressions; // 追加
 using System.Linq; // 追加
+using System.Collections.Generic; // Dictionary用に追加
 
 namespace VSA_launcher
 {
@@ -48,6 +49,18 @@ namespace VSA_launcher
                 weekRadio_Button.CheckedChanged += radioButton_CheckedChanged;
                 dayRadio_Button.CheckedChanged += radioButton_CheckedChanged;
                 fileSubdivision_checkBox.CheckedChanged += checkBox3_CheckedChanged;
+                
+                // ファイル名フォーマットのコンボボックス変更イベント追加
+                if (fileRename_comboBox != null)
+                {
+                    fileRename_comboBox.SelectedIndexChanged += FileRename_ComboBox_SelectedIndexChanged;
+                    
+                    // コンボボックスの初期化（値がまだ設定されていない場合）
+                    if (fileRename_comboBox.Items.Count == 0)
+                    {
+                        InitializeFileRenameComboBox();
+                    }
+                }
 
                 _logParser = new VRChatLogParser();
 
@@ -65,6 +78,121 @@ namespace VSA_launcher
                                MessageBoxIcon.Error);
                 Application.Exit();
             }
+        }
+
+        // ファイル名フォーマットコンボボックスの初期化
+        private void InitializeFileRenameComboBox()
+        {
+            // コンボボックスに項目を追加
+            fileRename_comboBox.Items.Clear();
+            fileRename_comboBox.Items.Add("名前を変更しない"); // インデックス0
+            fileRename_comboBox.Items.Add("年_月_日_時分_連番"); // インデックス1
+            fileRename_comboBox.Items.Add("年月日_時分_連番"); // インデックス2
+            fileRename_comboBox.Items.Add("年-月-日-曜日-時分-連番"); // インデックス3
+            fileRename_comboBox.Items.Add("日-月-年-時分-連番"); // インデックス4
+            fileRename_comboBox.Items.Add("月-日-年-時分-連番"); // インデックス5
+            fileRename_comboBox.Items.Add("年.月.日.時分.連番"); // インデックス6
+            fileRename_comboBox.Items.Add("時分_年月日_連番"); // インデックス7
+            
+            // 設定に基づいて選択項目を設定
+            bool enabled = _settings.FileRenaming.Enabled;
+            string format = _settings.FileRenaming.Format;
+            
+            int selectedIndex = 0; // デフォルトは「変更しない」
+            
+            if (enabled)
+            {
+                // フォーマットに基づいて適切なインデックスを選択
+                switch (format)
+                {
+                    case "yyyy_MM_dd_HHmm_seq": selectedIndex = 1; break;
+                    case "yyyyMMdd_HHmm_seq": selectedIndex = 2; break;
+                    case "yyyy-MM-dd-ddd-HHmm-seq": selectedIndex = 3; break;
+                    case "dd-MM-yyyy-HHmm-seq": selectedIndex = 4; break;
+                    case "MM-dd-yyyy-HHmm-seq": selectedIndex = 5; break;
+                    case "yyyy.MM.dd.HHmm.seq": selectedIndex = 6; break;
+                    case "HHmm_yyyyMMdd_seq": selectedIndex = 7; break;
+                    default: selectedIndex = 0; break;
+                }
+            }
+            
+            fileRename_comboBox.SelectedIndex = selectedIndex;
+            
+            // ラベル初期更新
+            UpdateFileRenamePreviewLabel();
+        }
+        
+        // コンボボックス変更イベントハンドラ
+        private void FileRename_ComboBox_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            // 選択されたインデックスに基づいて設定を更新
+            int selectedIndex = fileRename_comboBox.SelectedIndex;
+            
+            // 名前変更が有効かどうか（0以外なら有効）
+            _settings.FileRenaming.Enabled = (selectedIndex != 0);
+            
+            // フォーマットの更新
+            switch (selectedIndex)
+            {
+                case 1: _settings.FileRenaming.Format = "yyyy_MM_dd_HHmm_seq"; break;
+                case 2: _settings.FileRenaming.Format = "yyyyMMdd_HHmm_seq"; break;
+                case 3: _settings.FileRenaming.Format = "yyyy-MM-dd-ddd-HHmm-seq"; break;
+                case 4: _settings.FileRenaming.Format = "dd-MM-yyyy-HHmm-seq"; break;
+                case 5: _settings.FileRenaming.Format = "MM-dd-yyyy-HHmm-seq"; break;
+                case 6: _settings.FileRenaming.Format = "yyyy.MM.dd.HHmm.seq"; break;
+                case 7: _settings.FileRenaming.Format = "HHmm_yyyyMMdd_seq"; break;
+                default: _settings.FileRenaming.Format = ""; break;
+            }
+            
+            // 設定を保存
+            SettingsManager.SaveSettings(_settings);
+            
+            // プレビューラベルを更新
+            UpdateFileRenamePreviewLabel();
+        }
+        
+        // プレビューラベルの更新
+        private void UpdateFileRenamePreviewLabel()
+        {
+            if (fileRename_label == null) return;
+            
+            // 選択されたインデックス
+            int selectedIndex = fileRename_comboBox.SelectedIndex;
+            
+            if (selectedIndex == 0)
+            {
+                // 名前変更なしの場合
+                fileRename_label.Text = "ファイル名はそのまま保持されます";
+                return;
+            }
+            
+            // 現在の日時を取得
+            DateTime now = DateTime.Now;
+            
+            // フォーマット文字列を取得
+            string format = _settings.FileRenaming.Format;
+            
+            // 特殊なフォーマット処理
+            string fileName = now.ToString(format);
+            
+            // 曜日の処理（ddd を日本語曜日に置換）
+            if (format.Contains("ddd"))
+            {
+                string[] dayOfWeekJp = { "日", "月", "火", "水", "木", "金", "土" };
+                fileName = fileName.Replace("ddd", dayOfWeekJp[(int)now.DayOfWeek]);
+            }
+            
+            // 連番を仮の数字に置換
+            if (format.Contains("seq"))
+            {
+                fileName = fileName.Replace("seq", "001");
+            }
+            
+            // 拡張子を付加
+            fileName = $"{fileName}.png";
+            
+            // ラベルに表示
+            fileRename_label.Text = $"例: {fileName}";
         }
 
         private void Form1_Load(object sender, EventArgs e)
@@ -109,6 +237,12 @@ namespace VSA_launcher
                 case "day":
                     dayRadio_Button.Checked = true;
                     break;
+            }
+            
+            // ファイル名フォーマットのコンボボックスを更新
+            if (fileRename_comboBox != null)
+            {
+                InitializeFileRenameComboBox();
             }
             
             // フォルダ分けグループのUI状態
@@ -283,7 +417,7 @@ namespace VSA_launcher
             }
         }
 
-        private void FileWatcher_StatusChanged(object sender, StatusChangedEventArgs e)
+        private void FileWatcher_StatusChanged(object? sender, StatusChangedEventArgs e)
         {
             // UIスレッドでの実行を保証
             if (InvokeRequired)
@@ -295,14 +429,14 @@ namespace VSA_launcher
             UpdateStatusInfo(e.Message, $"監視: {_fileWatcher.DetectedFilesCount} 処理: {_fileWatcher.ProcessedFilesCount} エラー: {_fileWatcher.ErrorCount}");
         }
 
-        private void FileWatcher_FileDetected(object sender, FileDetectedEventArgs e)
+        private void FileWatcher_FileDetected(object? sender, FileDetectedEventArgs e)
         {
             // ファイルが検出されたときの処理
             // 実際の処理はバックグラウンドで
             Task.Run(() => ProcessFile(e.FilePath));
         }
 
-        private void StatusUpdateTimer_Tick(object sender, EventArgs e)
+        private void StatusUpdateTimer_Tick(object? sender, EventArgs e)
         {
             // 定期的なステータス更新
             if (_fileWatcher.IsWatching)
@@ -316,28 +450,11 @@ namespace VSA_launcher
         {
             try
             {
-                // 出力先が設定されていない場合は、スクリーンショットフォルダ内にVRCSnapArchiveフォルダを作成
+                // 出力先が設定されていない場合はスキップ
                 if (string.IsNullOrEmpty(_settings.OutputPath))
                 {
-                    string vrcArchiveFolder = Path.Combine(_settings.ScreenshotPath, "VRCSnapArchive");
-                    
-                    // フォルダが存在しない場合は作成
-                    if (!Directory.Exists(vrcArchiveFolder))
-                    {
-                        Directory.CreateDirectory(vrcArchiveFolder);
-                    }
-                    
-                    // 設定を更新
-                    _settings.OutputPath = vrcArchiveFolder;
-                    SettingsManager.SaveSettings(_settings);
-                    
-                    // UI更新
-                    BeginInvoke(new Action(() => {
-                        outPut_textBox.Text = vrcArchiveFolder;
-                        UpdateStatusInfo("出力先を自動設定", $"フォルダ: {vrcArchiveFolder}");
-                    }));
+                    return;
                 }
-
 
                 // 既に処理済みのファイルをスキップ
                 if (PngMetadataManager.IsProcessedFile(sourceFilePath))
@@ -404,13 +521,7 @@ namespace VSA_launcher
                     };
                     
                     // FileWatcherServiceのProcessFileメソッドを呼び出すように修正
-                    _fileWatcher.ProcessFile(sourceFilePath, destinationPath);
-                    
-                    // メタデータを直接PNGに書き込む
-                    if (Path.GetExtension(destinationPath).ToLower() == ".png")
-                    {
-                        PngMetadataManager.WriteMetadata(destinationPath, metadata);
-                    }
+                    _fileWatcher.ProcessFile(sourceFilePath, destinationPath, metadata);
                 }
                 else
                 {

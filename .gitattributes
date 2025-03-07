@@ -1,0 +1,24 @@
+# 自動検出を基本に
+* text=auto
+
+# Windowsシステムのため、CRLFを許容
+*.md text
+*.json text
+*.css text
+*.js text
+*.jsx text
+*.ts text
+*.tsx text
+*.html text
+*.txt text
+
+# バイナリファイルを指定（そのまま）
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.eot binary

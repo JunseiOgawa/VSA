@@ -50,9 +50,12 @@
             monthRadio_Button = new RadioButton();
             checkBox3 = new CheckBox();
             fileRename_comboBox = new ComboBox();
+            fileRename_pictureBox = new PictureBox();
+            fileRename_label = new Label();
             contextMenuStrip1.SuspendLayout();
             statusStrip1.SuspendLayout();
             fileSubdivision_Group.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)fileRename_pictureBox).BeginInit();
             SuspendLayout();
             // 
             // notifyIcon
@@ -110,16 +113,16 @@
             // statusStrip1
             // 
             statusStrip1.Items.AddRange(new ToolStripItem[] { startingState_toolStripStatusLabel, fileStatus_toolStripStatusLabel1 });
-            statusStrip1.Location = new Point(0, 312);
+            statusStrip1.Location = new Point(0, 321);
             statusStrip1.Name = "statusStrip1";
-            statusStrip1.Size = new Size(390, 22);
+            statusStrip1.Size = new Size(389, 22);
             statusStrip1.TabIndex = 1;
             statusStrip1.Text = "statusStrip1";
             // 
             // startingState_toolStripStatusLabel
             // 
             startingState_toolStripStatusLabel.Name = "startingState_toolStripStatusLabel";
-            startingState_toolStripStatusLabel.Size = new Size(257, 17);
+            startingState_toolStripStatusLabel.Size = new Size(256, 17);
             startingState_toolStripStatusLabel.Spring = true;
             startingState_toolStripStatusLabel.Text = "toolStripStatusLabel1";
             // 
@@ -183,7 +186,7 @@
             // 
             // launchMainApp_button
             // 
-            launchMainApp_button.Location = new Point(266, 254);
+            launchMainApp_button.Location = new Point(266, 265);
             launchMainApp_button.Name = "launchMainApp_button";
             launchMainApp_button.Size = new Size(121, 55);
             launchMainApp_button.TabIndex = 8;
@@ -304,11 +307,30 @@
             fileRename_comboBox.Size = new Size(248, 23);
             fileRename_comboBox.TabIndex = 15;
             // 
+            // fileRename_pictureBox
+            // 
+            fileRename_pictureBox.Location = new Point(337, 188);
+            fileRename_pictureBox.Name = "fileRename_pictureBox";
+            fileRename_pictureBox.Size = new Size(40, 40);
+            fileRename_pictureBox.TabIndex = 16;
+            fileRename_pictureBox.TabStop = false;
+            // 
+            // fileRename_label
+            // 
+            fileRename_label.AutoSize = true;
+            fileRename_label.Location = new Point(279, 237);
+            fileRename_label.Name = "fileRename_label";
+            fileRename_label.Size = new Size(104, 15);
+            fileRename_label.TabIndex = 18;
+            fileRename_label.Text = "ファイル名のプレビュー";
+            // 
             // VSA_launcher
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(390, 334);
+            ClientSize = new Size(389, 343);
+            Controls.Add(fileRename_label);
+            Controls.Add(fileRename_pictureBox);
             Controls.Add(fileRename_comboBox);
             Controls.Add(checkBox3);
             Controls.Add(fileSubdivision_Group);
@@ -333,6 +355,7 @@
             statusStrip1.PerformLayout();
             fileSubdivision_Group.ResumeLayout(false);
             fileSubdivision_Group.PerformLayout();
+            ((System.ComponentModel.ISupportInitialize)fileRename_pictureBox).EndInit();
             ResumeLayout(false);
             PerformLayout();
         }
@@ -368,5 +391,7 @@
         private RadioButton monthRadio_Button;
         private CheckBox checkBox3;
         private ComboBox fileRename_comboBox;
+        private PictureBox fileRename_pictureBox;
+        private Label fileRename_label;
     }
 }
