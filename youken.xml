@@ -1,54 +1,165 @@
-<!-- TechnicalRequirementsセクション内のLibraryGroupsを更新 -->
-<LibraryGroups>
-  <Group name="ランチャー (.NET/WinForms)">
-    <Library>
-      <Name>System.IO.FileSystemWatcher</Name>
-      <Purpose>ファイル変更監視</Purpose>
-      <Installation>標準ライブラリ（別途インストール不要）</Installation>
-    </Library>
-    <Library>
-      <Name>System.Drawing</Name>
-      <Purpose>画像処理・メタデータ操作</Purpose>
-      <Installation>標準ライブラリ（別途インストール不要）</Installation>
-      <Usage>PNG画像の読み書きとEXIF情報の操作</Usage>
-    </Library>
-    <Library>
-      <Name>System.Drawing.Imaging</Name>
-      <Purpose>EXIF処理</Purpose>
-      <Installation>標準ライブラリ（別途インストール不要）</Installation>
-    </Library>
-    <Library>
-      <Name>Newtonsoft.Json</Name>
-      <Purpose>設定ファイル読み書き・シリアライズ</Purpose>
-      <Installation>Install-Package Newtonsoft.Json</Installation>
-    </Library>
-  </Group>
-</LibraryGroups>
+<!-- プロジェクト概要 -->
+<ProjectSummary>
+  <Name>VRC-SnapArchive</Name>
+  <Description>VRChatのスクリーンショット管理アプリケーション</Description>
+  <Goal>メタデータに基づいた写真整理と閲覧機能の提供</Goal>
+  <TargetUsers>VRChatで写真をよく撮影するユーザー</TargetUsers>
+</ProjectSummary>
 
-<!-- MetadataServiceの実装方針を更新 -->
-<Services>
-  <Service>
-    <Name>MetadataService</Name>
-    <Description>EXIFメタデータ操作を担当</Description>
-    <Implementation>
-      <Method>System.Drawing.Imaging名前空間を使用</Method>
-      <Features>
-        <Feature>PropertyItem操作によるEXIF情報の読み書き</Feature>
-        <Feature>一時ファイル処理の簡素化</Feature>
-        <Feature>既存APIとの互換性維持</Feature>
-      </Features>
-    </Implementation>
-  </Service>
-</Services>
+<!-- システム構成 -->
+<SystemComponents>
+  <Component>
+    <Name>VSA-launcher</Name>
+    <Type>WinForms (.NET)</Type>
+    <Purpose>バックグラウンド処理、設定管理、ファイル監視</Purpose>
+    <Features>
+      <Feature>ファイル監視とメタデータ付与</Feature>
+      <Feature>フォルダ分け処理</Feature>
+      <Feature>システムトレイ常駐</Feature>
+      <Feature>設定管理</Feature>
+    </Features>
+  </Component>
+  <Component>
+    <Name>フロントエンドUI</Name>
+    <Type>React/Electron</Type>
+    <Purpose>写真閲覧、検索、一括処理</Purpose>
+    <Features>
+      <Feature>メタデータによる検索・絞り込み</Feature>
+      <Feature>複数選択と一括操作</Feature>
+      <Feature>指定フォルダへのエクスポート</Feature>
+    </Features>
+  </Component>
+</SystemComponents>
 
-<!-- DataFlowセクションも更新 -->
+<!-- 技術スタック -->
+<TechnicalRequirements>
+  <LibraryGroups>
+    <Group name="ランチャー (.NET/WinForms)">
+      <Library>
+        <Name>System.IO.FileSystemWatcher</Name>
+        <Purpose>ファイル変更監視</Purpose>
+        <Installation>標準ライブラリ</Installation>
+      </Library>
+      <Library>
+        <Name>System.Drawing</Name>
+        <Purpose>画像処理</Purpose>
+        <Installation>標準ライブラリ</Installation>
+      </Library>
+      <Library>
+        <Name>Hjg.Pngcs</Name>
+        <Purpose>PNG形式メタデータ操作</Purpose>
+        <Installation>NuGet</Installation>
+        <Notes>PNGのChunk形式メタデータ対応のため</Notes>
+      </Library>
+      <Library>
+        <Name>Newtonsoft.Json</Name>
+        <Purpose>設定ファイル処理</Purpose>
+        <Installation>NuGet</Installation>
+      </Library>
+    </Group>
+    <Group name="フロントエンド (React/Electron)">
+      <Library>
+        <Name>Electron</Name>
+        <Purpose>デスクトップアプリケーション化</Purpose>
+      </Library>
+      <Library>
+        <Name>React</Name>
+        <Purpose>UI構築</Purpose>
+      </Library>
+      <Library>
+        <Name>Flask (Python)</Name>
+        <Purpose>バックエンドAPI</Purpose>
+        <Notes>必要に応じてElectronから起動</Notes>
+      </Library>
+    </Group>
+  </LibraryGroups>
+</TechnicalRequirements>
+
+<!-- 機能要件 -->
+<Features>
+  <Feature>
+    <Name>メタデータ付与</Name>
+    <Description>PNGファイルにワールド名、フレンド情報などのメタデータ付与</Description>
+    <Implementation>Hjg.Pngcsライブラリを使用してPNGチャンクに情報を格納</Implementation>
+    <Source>VRChatログファイルから情報取得</Source>
+  </Feature>
+  <Feature>
+    <Name>フォルダ構造管理</Name>
+    <Description>設定に基づいた自動フォルダ分け</Description>
+    <Options>
+      <Option>月単位</Option>
+      <Option>週単位</Option>
+      <Option>日単位</Option>
+    </Options>
+  </Feature>
+  <Feature>
+    <Name>ファイル名変更</Name>
+    <Description>設定されたパターンに従いファイル名を自動変更</Description>
+    <Formats>
+      <Format>年_月_日_時分_連番</Format>
+      <Format>年月日_時分_連番</Format>
+      <Format>年-月-日-曜日-時分-連番</Format>
+      <Format>その他の複数フォーマット</Format>
+    </Formats>
+  </Feature>
+  <Feature>
+    <Name>検索・絞り込み</Name>
+    <Description>メタデータに基づく検索機能</Description>
+    <SearchParameters>
+      <Parameter>ワールド名</Parameter>
+      <Parameter>フレンド名</Parameter>
+      <Parameter>撮影日時</Parameter>
+    </SearchParameters>
+  </Feature>
+  <Feature>
+    <Name>圧縮機能</Name>
+    <Description>月ごとの自動圧縮</Description>
+  </Feature>
+</Features>
+
+<!-- データフロー -->
 <DataFlow>
-  <Step>ファイル監視サービスが新規ファイル作成を検出</Step>
-  <Step>ファイル準備完了状態を確認</Step>
-  <Step>System.Drawing.Imageを使用して画像を読み込み</Step>
-  <Step>現在のワールド情報とタイムスタンプに基づくEXIFデータを生成</Step>
-  <Step>PropertyItemを使用してEXIFメタデータを付与</Step>
-  <Step>変更済み画像を保存</Step>
-  <Step>フォルダ分け設定に従って移動</Step>
-  <Step>ログにプロセス完了を記録</Step>
+  <Step>ランチャーがVRChatスクリーンショットフォルダを監視</Step>
+  <Step>新規ファイル検出時にログから現在のワールド情報とフレンド情報を取得</Step>
+  <Step>PNG形式のメタデータとしてワールドID、フレンド名、撮影時刻を追加</Step>
+  <Step>設定に基づいたファイル名変更処理</Step>
+  <Step>フォルダ分け設定に従い適切な場所に保存</Step>
+  <Step>メインアプリで閲覧・検索時にメタデータ情報を解析して表示</Step>
 </DataFlow>
+
+<!-- UI要件 -->
+<UIRequirements>
+  <LauncherUI>
+    <Type>シンプルな設定画面</Type>
+    <Elements>
+      <Element>スクリーンショットフォルダ設定</Element>
+      <Element>出力先フォルダ設定</Element>
+      <Element>メタデータ付与設定</Element>
+      <Element>フォルダ分け設定</Element>
+      <Element>ファイル名フォーマット設定</Element>
+      <Element>圧縮設定</Element>
+    </Elements>
+  </LauncherUI>
+  <MainUI>
+    <Type>写真管理インターフェース</Type>
+    <Elements>
+      <Element>サムネイル表示</Element>
+      <Element>検索・絞り込み機能</Element>
+      <Element>メタデータ情報表示</Element>
+      <Element>複数選択</Element>
+      <Element>エクスポート機能</Element>
+    </Elements>
+  </MainUI>
+</UIRequirements>
+
+<!-- 将来の拡張計画 -->
+<FutureExtensions>
+  <Extension>
+    <Name>AI機能</Name>
+    <Description>写真の表情やジェスチャーを分析</Description>
+  </Extension>
+  <Extension>
+    <Name>フォトブック機能</Name>
+    <Description>明るさや内容に基づいた自動フォトブック作成</Description>
+  </Extension>
+</FutureExtensions>

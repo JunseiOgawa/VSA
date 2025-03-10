@@ -52,7 +52,7 @@ namespace VSA_launcher
                 try
                 {
                     // 一時ファイルにメタデータを追加して出力先に保存
-                    bool success = PngMetadataManager.AddMetadataToPng(tempFilePath, destinationPath, metadata);
+                    bool success = SimplePngMetadataManager.AddMetadataToPng(tempFilePath, destinationPath, metadata);
                     
                     if (!success)
                     {
@@ -238,7 +238,7 @@ namespace VSA_launcher
                 {
                     using (var fs = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
                     {
-                        return PngMetadataManager.IsProcessedFile(filePath);
+                        return SimplePngMetadataManager.IsProcessedFile(filePath);
                     }
                 }
                 catch

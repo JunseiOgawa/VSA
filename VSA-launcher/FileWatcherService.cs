@@ -4,8 +4,6 @@ using System.Threading.Tasks;
 using System.Text.RegularExpressions;
 using System.Collections.Generic;
 using System.Linq;
-using Hjg.Pngcs;
-using Hjg.Pngcs.Chunks;
 
 namespace VSA_launcher
 {
@@ -569,15 +567,15 @@ namespace VSA_launcher
     }
 
     /// <summary>
-    /// ステータス変更イベント引数
-    /// </summary>
-    public class StatusChangedEventArgs : EventArgs
-    {
-        public string Message { get; }
-        
-        public StatusChangedEventArgs(string message)
+        /// ステータス変更イベント引数
+        /// </summary>
+        public class StatusChangedEventArgs : EventArgs
         {
-            Message = message;
+            public string Message { get; }
+            
+            public StatusChangedEventArgs(string message)
+            {
+                Message = message;
+            }
         }
     }
-}
