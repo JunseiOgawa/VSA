@@ -25,9 +25,8 @@ namespace VSA_launcher
         /// </summary>
         public static bool AddMetadataToPng(string sourceFilePath, string targetFilePath, Dictionary<string, string> metadata)
         {
+            // 一時ファイルパスを生成
             string tempFilePath = Path.Combine(Path.GetTempPath(), $"vsa_tmp_{Guid.NewGuid()}.png");
-            bool useTempFile = string.Equals(sourceFilePath, targetFilePath, StringComparison.OrdinalIgnoreCase);
-            string actualTargetPath = useTempFile ? tempFilePath : targetFilePath;
             
             try
             {
@@ -50,24 +49,61 @@ namespace VSA_launcher
                     metadata.Add(PROCESSED_KEY, "true");
                 }
                 
-                // 画像を読み込み
-                using (Image image = Image.FromFile(sourceFilePath))
+                // 画像をメモリ上で処理
+                using (var memoryStream = new MemoryStream())
                 {
-                    // メタデータを埋め込む
-                    AddMetadataToImage(image, metadata);
+                    // ファイルを共有読み取りモードでメモリに読み込み
+                    using (var fileStream = new FileStream(sourceFilePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+                    {
+                        byte[] buffer = new byte[fileStream.Length];
+                        fileStream.Read(buffer, 0, buffer.Length);
+                        memoryStream.Write(buffer, 0, buffer.Length);
+                        memoryStream.Position = 0;
+                    }
                     
-                    // 出力先に保存
-                    image.Save(actualTargetPath, ImageFormat.Png);
+                    // 画像をメモリから読み込み
+                    using (Image image = Image.FromStream(memoryStream, false, false))
+                    {
+                        // メタデータを埋め込む
+                        AddMetadataToImage(image, metadata);
+                        
+                        // 一時ファイルとして保存
+                        image.Save(tempFilePath, ImageFormat.Png);
+                    }
                 }
                 
-                // 一時ファイルの場合は元に戻す
-                if (useTempFile && File.Exists(tempFilePath))
+                // 一時ファイルを出力先にコピー
+                try
                 {
+                    // 出力先ディレクトリの確認
+                    string? dir = Path.GetDirectoryName(targetFilePath);
+                    if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
+                    {
+                        Directory.CreateDirectory(dir);
+                    }
+                    
+                    // ファイルをコピー
                     File.Copy(tempFilePath, targetFilePath, true);
-                    File.Delete(tempFilePath);
+                    
+                    // メタデータ書き込み検証（オプション）
+                    if (ShouldVerifyMetadata)
+                    {
+                        if (!VerifyWrittenMetadata(targetFilePath, metadata))
+                        {
+                            LogError($"メタデータ検証失敗: {Path.GetFileName(targetFilePath)}");
+                        }
+                    }
+                    
+                    // 一時ファイル削除
+                    try { File.Delete(tempFilePath); } catch { }
+                    
+                    return true;
                 }
-                
-                return true;
+                catch (Exception ex)
+                {
+                    LogError($"出力先へのコピーエラー: {ex.Message}");
+                    return false;
+                }
             }
             catch (Exception ex)
             {
@@ -80,17 +116,71 @@ namespace VSA_launcher
                     {
                         File.Delete(tempFilePath);
                     }
-                    
-                    // 部分的に作成された出力ファイルを削除
-                    if (!useTempFile && File.Exists(targetFilePath) && 
-                        !string.Equals(sourceFilePath, targetFilePath, StringComparison.OrdinalIgnoreCase))
-                    {
-                        File.Delete(targetFilePath);
-                    }
                 }
                 catch { }
                 
                 return false;
+            }
+        }
+
+        // メタデータ検証フラグ（パフォーマンス調整のため、デフォルトはfalse）
+        public static bool ShouldVerifyMetadata { get; set; } = false;
+        
+        /// <summary>
+        /// 書き込まれたメタデータを検証
+        /// </summary>
+        private static bool VerifyWrittenMetadata(string filePath, Dictionary<string, string> expectedMetadata)
+        {
+            try
+            {
+                // ファイルからメタデータを読み取り
+                var actualMetadata = ReadMetadataFromPng(filePath);
+                
+                // 必須のキーが存在するか確認
+                if (!actualMetadata.ContainsKey(PROCESSED_KEY))
+                {
+                    LogError($"検証エラー: 処理マーカーが見つかりません");
+                    return false;
+                }
+                
+                // 重要なメタデータをチェック
+                foreach (var key in new[] { "WorldName", "WorldID", "CaptureTime" })
+                {
+                    if (expectedMetadata.ContainsKey(key) && !actualMetadata.ContainsKey(key))
+                    {
+                        LogError($"検証エラー: メタデータキーが欠落: {key}");
+                        return false;
+                    }
+                }
+                
+                return true;
+            }
+            catch (Exception ex)
+            {
+                LogError($"メタデータ検証エラー: {ex.Message}");
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// ファイルにアクセス可能かどうかをチェック
+        /// </summary>
+        private static bool IsFileAccessible(string filePath)
+        {
+            if (!File.Exists(filePath))
+                return true; // ファイルが存在しなければアクセス可能
+                
+            try
+            {
+                using (FileStream fs = File.Open(filePath, FileMode.Open, FileAccess.ReadWrite, FileShare.None))
+                {
+                    // ファイルが開けたらアクセス可能
+                    return true;
+                }
+            }
+            catch
+            {
+                return false; // 例外が発生したらアクセス不可
             }
         }
         
@@ -222,19 +312,40 @@ namespace VSA_launcher
         }
         
         /// <summary>
-        /// PNGファイルが処理済みかどうかを確認
+        /// PNGファイルが処理済みかどうかを確認（ファイルロック回避版）
         /// </summary>
         public static bool IsProcessedFile(string filePath)
         {
-            try
-            {
-                var metadata = ReadMetadataFromPng(filePath);
-                return metadata.ContainsKey(PROCESSED_KEY) && metadata[PROCESSED_KEY].ToLower() == "true";
-            }
-            catch
+            if (!File.Exists(filePath))
             {
                 return false;
             }
+            
+            try
+            {
+                // 共有モードで開く
+                using (var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+                using (var image = Image.FromStream(stream, false, false))
+                {
+                    // Exifコメントからメタデータを取得
+                    foreach (PropertyItem item in image.PropertyItems)
+                    {
+                        if (item.Id == PropertyTagExifUserComment)
+                        {
+                            string json = Encoding.ASCII.GetString(item.Value).TrimEnd('\0');
+                            var metadata = ParseJsonMetadata(json);
+                            return metadata.ContainsKey(PROCESSED_KEY) && metadata[PROCESSED_KEY] == "true";
+                        }
+                    }
+                }
+            }
+            catch
+            {
+                // ファイルが開けない場合は処理済みでない
+                return false;
+            }
+            
+            return false;
         }
         
         /// <summary>

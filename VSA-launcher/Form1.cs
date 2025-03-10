@@ -15,6 +15,9 @@ namespace VSA_launcher
         private FileWatcherService _fileWatcher = null!;
         private System.Windows.Forms.Timer _statusUpdateTimer = null!;
         private readonly VRChatLogParser _logParser = null!;
+        private ImageProcessor _imageProcessor = null!;
+        private FolderStructureManager _folderManager = null!;
+        private FileNameGenerator _fileNameGenerator = null!;
 
         public VSA_launcher()
         {
@@ -62,6 +65,11 @@ namespace VSA_launcher
                 logUpdateTimer.Interval = 60000; // 1分
                 logUpdateTimer.Tick += (s, e) => _logParser.ParseLatestLog();
                 logUpdateTimer.Start();
+
+                // 画像プロセッサを初期化
+                _folderManager = new FolderStructureManager(_settings);
+                _fileNameGenerator = new FileNameGenerator(_settings);
+                _imageProcessor = new ImageProcessor(_settings, _logParser, _fileWatcher, UpdateStatusInfo);
             }
             catch (Exception ex)
             {
@@ -159,33 +167,11 @@ namespace VSA_launcher
                 return;
             }
 
-            // 現在の日時を取得
-            DateTime now = DateTime.Now;
-
-            // フォーマット文字列を取得
-            string format = _settings.FileRenaming.Format;
-
-            // 特殊なフォーマット処理
-            string fileName = now.ToString(format);
-
-            // 曜日の処理（ddd を日本語曜日に置換）
-            if (format.Contains("ddd"))
-            {
-                string[] dayOfWeekJp = { "日", "月", "火", "水", "木", "金", "土" };
-                fileName = fileName.Replace("ddd", dayOfWeekJp[(int)now.DayOfWeek]);
-            }
-
-            // 連番を仮の数字に置換
-            if (format.Contains("seq"))
-            {
-                fileName = fileName.Replace("seq", "001");
-            }
-
-            // 拡張子を付加
-            fileName = $"{fileName}.png";
-
+            // フォーマットに基づくプレビューを生成
+            string previewName = _fileNameGenerator.GeneratePreviewFileName(_settings.FileRenaming.Format);
+            
             // ラベルに表示
-            fileRename_label.Text = $"例: {fileName}";
+            fileRename_label.Text = $"例: {previewName}";
         }
 
         private void Form1_Load(object sender, EventArgs e)
@@ -633,22 +619,7 @@ namespace VSA_launcher
         // フォルダ構造が月別かどうかを判定
         private bool IsMonthFolderStructure(string folderPath)
         {
-            try
-            {
-                // 指定されたパス内のサブフォルダを取得
-                string[] subFolders = Directory.GetDirectories(folderPath);
-
-                // YYYY-MM 形式のフォルダが2つ以上あれば月別構造と判定
-                int monthFormatFolders = subFolders
-                    .Select(Path.GetFileName)
-                    .Count(folder => Regex.IsMatch(folder ?? "", @"^\d{4}-\d{2}$"));
-
-                return monthFormatFolders >= 2;
-            }
-            catch
-            {
-                return false;
-            }
+            return _folderManager.IsMonthFolderStructure(folderPath);
         }
 
         private void FileWatcher_StatusChanged(object? sender, StatusChangedEventArgs e)
@@ -682,198 +653,7 @@ namespace VSA_launcher
 
         private void ProcessFile(string sourceFilePath)
         {
-            try
-            {
-                // 出力先が設定されていない場合はスキップ
-                if (string.IsNullOrEmpty(_settings.OutputPath))
-                {
-                    return;
-                }
-
-                // 既に処理済みのファイルをスキップ
-                if (PngMetadataManager.IsProcessedFile(sourceFilePath))
-                {
-                    UpdateStatusInfo("スキップ", $"処理済みファイル: {Path.GetFileName(sourceFilePath)}");
-                    return;
-                }
-
-                string fileName = Path.GetFileName(sourceFilePath);
-                string destinationFolder = _settings.OutputPath;
-
-                // ソースパスがVRCの月別フォルダ構造かどうか判定
-                bool isSourceMonthStructure = IsMonthFolderStructure(Path.GetDirectoryName(sourceFilePath) ?? "");
-                
-                // フォルダ分けが有効かつソースが通常構造の場合
-                if (_settings.FolderStructure.Enabled)
-                {
-                    string subFolder;
-                    
-                    // ソースが月別フォルダ構造の場合、その構造を維持
-                    if (isSourceMonthStructure)
-                    {
-                        // 親フォルダから月フォルダ名を取得（YYYY-MM形式を想定）
-                        string sourceFolder = Path.GetDirectoryName(sourceFilePath) ?? "";
-                        string monthFolderName = Path.GetFileName(sourceFolder);
-                        
-                        // YYYY-MM形式かどうか確認
-                        if (Regex.IsMatch(monthFolderName, @"^\d{4}-\d{2}$"))
-                        {
-                            destinationFolder = Path.Combine(_settings.OutputPath, monthFolderName);
-                        }
-                        else
-                        {
-                            // 形式が違う場合は現在の月を使用
-                            destinationFolder = Path.Combine(_settings.OutputPath, DateTime.Now.ToString("yyyy-MM"));
-                        }
-                    }
-                    else
-                    {
-                        // それ以外のケースでは設定に従ってフォルダ分け
-                        DateTime fileTime = File.GetCreationTime(sourceFilePath); // ファイルの作成日時を使用
-
-                        // 分類タイプに応じてフォルダ名を決定
-                        switch (_settings.FolderStructure.Type)
-                        {
-                            case "month":
-                                subFolder = fileTime.ToString("yyyy-MM");
-                                break;
-                            case "week":
-                                // 週番号を取得（文化に依存）
-                                int weekNum = System.Globalization.CultureInfo.CurrentCulture.Calendar.GetWeekOfYear(
-                                    fileTime, System.Globalization.CalendarWeekRule.FirstDay, DayOfWeek.Monday);
-                                subFolder = $"{fileTime.Year}-W{weekNum:D2}";
-                                break;
-                            case "day":
-                                subFolder = fileTime.ToString("yyyy-MM-dd");
-                                break;
-                            default:
-                                subFolder = fileTime.ToString("yyyy-MM");
-                                break;
-                        }
-
-                        // サブフォルダのフルパス
-                        destinationFolder = Path.Combine(_settings.OutputPath, subFolder);
-                    }
-
-                    // フォルダが存在しない場合は作成
-                    if (!Directory.Exists(destinationFolder))
-                    {
-                        Directory.CreateDirectory(destinationFolder);
-                    }
-                }
-
-                // 最終的な出力先パス
-                string destinationPath = Path.Combine(destinationFolder, fileName);
-
-                // ファイル名変更が有効な場合は処理
-                if (_settings.FileRenaming.Enabled)
-                {
-                    // 作成日時を取得
-                    DateTime fileCreationTime = File.GetCreationTime(sourceFilePath);
-
-                    // フォーマットに従ってファイル名を生成
-                    string format = _settings.FileRenaming.Format;
-                    string newFileName = GenerateFileName(fileCreationTime, format);
-
-                    // 拡張子を保持
-                    string extension = Path.GetExtension(fileName);
-
-                    // 最終ファイル名の組み立て
-                    destinationPath = Path.Combine(destinationFolder, newFileName + extension);
-                }
-
-                // メタデータ付与はファイル移動前に行う必要がある
-                if (_settings.Metadata.Enabled)
-                {
-                    // ログパーサーから最新情報を取得
-                    _logParser.ParseLatestLog();
-
-                    // メタデータの作成
-                    var metadata = new Dictionary<string, string>
-                    {
-                        { "WorldName", _logParser.CurrentWorldName ?? "Unknown" },
-                        { "WorldID", _logParser.CurrentWorldId ?? "Unknown" },
-                        { "CaptureTime", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") },
-                        { "VSA", "true" } // 処理済みフラグを追加
-                    };
-
-                    // FileWatcherServiceのProcessFileメソッドを呼び出すように修正
-                    _fileWatcher.ProcessFile(sourceFilePath, destinationPath, metadata);
-                }
-                else
-                {
-                    // メタデータ無効の場合は直接コピー
-                    File.Copy(sourceFilePath, destinationPath, true);
-                }
-
-                // UI更新（最後の処理情報などを表示）
-                BeginInvoke(new Action(() =>
-                {
-                    UpdateStatusInfo("処理完了", $"最新: {Path.GetFileName(destinationPath)}");
-                }));
-            }
-            catch (Exception ex)
-            {
-                // エラー処理
-                BeginInvoke(new Action(() =>
-                {
-                    UpdateStatusInfo("処理エラー", ex.Message);
-                }));
-            }
-        }
-
-        /// <summary>
-        /// ファイル名生成（フォーマットに基づく）
-        /// </summary>
-        private string GenerateFileName(DateTime dateTime, string format)
-        {
-            // フォーマットに日付を適用
-            string fileName = dateTime.ToString(format);
-
-            // seq や 連番 を 3桁連番に置き換え
-            if (format.Contains("seq") || format.Contains("連番"))
-            {
-                // 基本ファイル名のパターン作成
-                string pattern = fileName
-                    .Replace("seq", "")
-                    .Replace("連番", "")
-                    + "???";
-
-                // 同じパターンのファイルを検索
-                int counter = 1;
-
-                try
-                {
-                    // 出力先フォルダ内で同じパターンのファイル数をカウント
-                    string searchPattern = Path.GetFileNameWithoutExtension(pattern) + "*.*";
-                    string searchFolder = Path.GetDirectoryName(Path.Combine(_settings.OutputPath, "dummy")) ?? "";
-
-                    if (Directory.Exists(searchFolder))
-                    {
-                        var existingFiles = Directory.GetFiles(searchFolder, searchPattern);
-                        counter = existingFiles.Length + 1;
-                    }
-                }
-                catch
-                {
-                    // エラー時はデフォルトの1を使用
-                    counter = 1;
-                }
-
-                // 連番を3桁の数字で置換
-                fileName = fileName
-                    .Replace("seq", counter.ToString("D3"))
-                    .Replace("連番", counter.ToString("D3"));
-            }
-
-            // ddd を日本語曜日に置換
-            if (format.Contains("ddd"))
-            {
-                string[] dayOfWeekJp = { "日", "月", "火", "水", "木", "金", "土" };
-                fileName = fileName.Replace("ddd", dayOfWeekJp[(int)dateTime.DayOfWeek]);
-            }
-
-            return fileName;
+            _imageProcessor.ProcessImage(sourceFilePath);
         }
 
         protected override void Dispose(bool disposing)
