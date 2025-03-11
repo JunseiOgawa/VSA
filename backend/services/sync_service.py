@@ -20,16 +20,26 @@ def sync_settings_from_json(json_path=None):
     """
     # デフォルトのJSONパスを使用
     if not json_path:
-        # プロジェクトルートディレクトリの取得（通常はVSA-launcherと同階層）
-        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        # launcherディレクトリまで遡る
-        parent_dir = os.path.dirname(base_dir)
-        json_path = os.path.join(parent_dir, 'appsettings.json')
+        # 修正: プロジェクトルートディレクトリの取得方法を変更
+        # backend/services から backend/ へ
+        backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        # backend/ から プロジェクトルート へ
+        project_root = os.path.dirname(backend_dir)
+        json_path = os.path.join(project_root, 'appsettings.json')
+        
+        # 代替パスを試す（設定ファイルが見つからない場合）
+        if not os.path.exists(json_path):
+            # 現在の作業ディレクトリからも探す
+            current_dir = os.getcwd()
+            alt_path = os.path.join(current_dir, 'appsettings.json')
+            if os.path.exists(alt_path):
+                json_path = alt_path
     
     if not os.path.exists(json_path):
+        print(f"設定ファイルが見つかりません: {json_path}")
         return {
             'success': False,
-            'error': f'Settings file not found: {json_path}',
+            'error': f'設定ファイルが見つかりません: {json_path}',
             'timestamp': datetime.datetime.now().isoformat()
         }
     
@@ -66,6 +76,7 @@ def sync_settings_from_json(json_path=None):
         # 変更をコミット
         session.commit()
         
+        print(f"設定ファイルから {settings_updated} 項目を同期しました: {json_path}")
         return {
             'success': True,
             'settings_updated': settings_updated,
@@ -74,6 +85,7 @@ def sync_settings_from_json(json_path=None):
         }
     
     except Exception as e:
+        print(f"設定ファイル読み込みエラー: {str(e)}")
         return {
             'success': False,
             'error': str(e),

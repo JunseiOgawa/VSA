@@ -27,6 +27,7 @@
       <Feature>メタデータによる検索・絞り込み</Feature>
       <Feature>複数選択と一括操作</Feature>
       <Feature>指定フォルダへのエクスポート</Feature>
+      <Feature>SNS投稿用定型文生成</Feature>
     </Features>
   </Component>
 </SystemComponents>
@@ -72,7 +73,70 @@
         <Notes>必要に応じてElectronから起動</Notes>
       </Library>
     </Group>
+    
+    <!-- 新しいバックエンドAPI関連のグループを追加 -->
+    <Group name="バックエンドAPI (Python/Flask)">
+      <Library>
+        <Name>Flask</Name>
+        <Purpose>RESTful APIフレームワーク</Purpose>
+        <Installation>pip install</Installation>
+      </Library>
+      <Library>
+        <Name>Flask-CORS</Name>
+        <Purpose>クロスオリジンリソース共有対策</Purpose>
+        <Installation>pip install</Installation>
+      </Library>
+      <Library>
+        <Name>SQLite</Name>
+        <Purpose>軽量データベース</Purpose>
+        <Installation>標準ライブラリ</Installation>
+      </Library>
+      <Library>
+        <Name>SQLAlchemy</Name>
+        <Purpose>オブジェクトリレーショナルマッパー(ORM)</Purpose>
+        <Installation>pip install</Installation>
+      </Library>
+      <Library>
+        <Name>Pillow</Name>
+        <Purpose>画像処理</Purpose>
+        <Installation>pip install</Installation>
+      </Library>
+    </Group>
   </LibraryGroups>
+  
+  <!-- データベース設計を追加 -->
+  <DatabaseDesign>
+    <Database>SQLite</Database>
+    <ORM>SQLAlchemy</ORM>
+    <Tables>
+      <Table>
+        <Name>image_metadata</Name>
+        <Columns>
+          <Column>id (主キー)</Column>
+          <Column>file_path (ユニーク)</Column>
+          <Column>file_name</Column>
+          <Column>world_id</Column>
+          <Column>world_name</Column>
+          <Column>friends (JSON形式)</Column>
+          <Column>capture_time</Column>
+          <Column>created_at</Column>
+          <Column>updated_at</Column>
+        </Columns>
+      </Table>
+      <Table>
+        <Name>settings</Name>
+        <Columns>
+          <Column>id (主キー)</Column>
+          <Column>key</Column>
+          <Column>value (JSON形式)</Column>
+        </Columns>
+        <SettingsKeys>
+          <Key>tweet_templates</Key> <!-- テンプレート一覧をJSON形式で保存 -->
+          <Key>default_tweet_template</Key> <!-- デフォルトで選択されるテンプレートID -->
+        </SettingsKeys>
+      </Table>
+    </Tables>
+  </DatabaseDesign>
 </TechnicalRequirements>
 
 <!-- 機能要件 -->
@@ -115,6 +179,25 @@
     <Name>圧縮機能</Name>
     <Description>月ごとの自動圧縮</Description>
   </Feature>
+  <Feature>
+    <Name>SNS投稿用定型文生成</Name>
+    <Description>選択した写真のメタデータを使用してSNS投稿用の定型文を生成・コピー</Description>
+    <Implementation>選択画像のworld_nameなどのメタデータを抽出し、テンプレートに挿入</Implementation>
+    <TemplateVariables>
+      <Variable>$world_name$</Variable>
+      <Variable>$world_id$</Variable>
+      <Variable>$capture_time$</Variable>
+      <Variable>$friends$</Variable>
+      <Variable>$file_name$</Variable>
+      <Variable>$count$</Variable> <!-- 選択した写真の枚数 -->
+      <Variable>$date$</Variable> <!-- 現在の日付 -->
+    </TemplateVariables>
+    <DefaultTemplates>
+      <Template>「$world_name$」で撮影した写真です！ #VRChat #VRC写真</Template>
+      <Template>$world_name$にて。$friends$と一緒に！ #VRChat</Template>
+      <Template>今日は$count$枚の写真を撮りました！$world_name$にて。 #VRChat</Template>
+    </DefaultTemplates>
+  </Feature>
 </Features>
 
 <!-- データフロー -->
@@ -125,6 +208,10 @@
   <Step>設定に基づいたファイル名変更処理</Step>
   <Step>フォルダ分け設定に従い適切な場所に保存</Step>
   <Step>メインアプリで閲覧・検索時にメタデータ情報を解析して表示</Step>
+  <Step>複数画像選択時にSNS定型文生成ボタンをクリック</Step>
+  <Step>選択画像のメタデータをバックエンドで取得</Step>
+  <Step>テンプレートの変数をメタデータで置換</Step>
+  <Step>生成されたテキストをユーザーに表示してクリップボードコピー機能を提供</Step>
 </DataFlow>
 
 <!-- UI要件 -->
@@ -148,7 +235,35 @@
       <Element>メタデータ情報表示</Element>
       <Element>複数選択</Element>
       <Element>エクスポート機能</Element>
+      <Element>SNS投稿用定型文生成</Element>
     </Elements>
+    
+    <!-- SNS定型文生成用モーダルの詳細 -->
+    <Modal name="TemplateEditorModal">
+      <Title>SNS投稿文テンプレート編集</Title>
+      <Elements>
+        <Element>テンプレート選択ドロップダウン</Element>
+        <Element>テンプレート名入力欄</Element>
+        <Element>テキスト編集エリア</Element>
+        <Element>
+          <Name>メタデータ変数ボタン群</Name>
+          <Description>クリックするとカーソル位置に変数を挿入</Description>
+          <Buttons>
+            <Button>ワールド名 ($world_name$)</Button>
+            <Button>ワールドID ($world_id$)</Button>
+            <Button>撮影日時 ($capture_time$)</Button>
+            <Button>フレンド ($friends$)</Button>
+            <Button>ファイル名 ($file_name$)</Button>
+            <Button>選択枚数 ($count$)</Button>
+            <Button>現在日付 ($date$)</Button>
+          </Buttons>
+        </Element>
+        <Element>プレビューエリア</Element>
+        <Element>コピーボタン</Element>
+        <Element>保存ボタン</Element>
+        <Element>削除ボタン</Element>
+      </Elements>
+    </Modal>
   </MainUI>
 </UIRequirements>
 
@@ -163,3 +278,73 @@
     <Description>明るさや内容に基づいた自動フォトブック作成</Description>
   </Extension>
 </FutureExtensions>
+
+<!-- システム連携部分を追加 -->
+<SystemIntegration>
+  <APIServer>
+    <Name>VSA-Backend</Name>
+    <Type>Flask (Python)</Type>
+    <LaunchMethod>Electronアプリケーションから必要時に起動</LaunchMethod>
+    <Structure>
+      <Component>app.py (エントリーポイント)</Component>
+      <Component>models/ (SQLAlchemyモデル)</Component>
+      <Component>routes/ (APIエンドポイント)</Component>
+      <Component>services/ (ビジネスロジック)</Component>
+      <Component>utils/ (ユーティリティ関数)</Component>
+    </Structure>
+    <Endpoints>
+      <Endpoint>
+        <Path>/api/images</Path>
+        <Method>GET</Method>
+        <Description>画像一覧の取得・検索</Description>
+      </Endpoint>
+      <Endpoint>
+        <Path>/api/images/{id}/metadata</Path>
+        <Method>GET</Method>
+        <Description>画像メタデータの取得</Description>
+      </Endpoint>
+      <Endpoint>
+        <Path>/api/images/export</Path>
+        <Method>POST</Method>
+        <Description>画像エクスポート機能</Description>
+      </Endpoint>
+      <Endpoint>
+        <Path>/api/settings</Path>
+        <Method>GET/PUT</Method>
+        <Description>設定の取得・更新</Description>
+      </Endpoint>
+      <Endpoint>
+        <Path>/api/templates</Path>
+        <Method>GET</Method>
+        <Description>テンプレート一覧の取得</Description>
+      </Endpoint>
+      <Endpoint>
+        <Path>/api/templates</Path>
+        <Method>POST</Method>
+        <Description>新しいテンプレートの作成</Description>
+      </Endpoint>
+      <Endpoint>
+        <Path>/api/templates/{id}</Path>
+        <Method>PUT</Method>
+        <Description>テンプレートの更新</Description>
+      </Endpoint>
+      <Endpoint>
+        <Path>/api/templates/{id}</Path>
+        <Method>DELETE</Method>
+        <Description>テンプレートの削除</Description>
+      </Endpoint>
+      <Endpoint>
+        <Path>/api/templates/generate</Path>
+        <Method>POST</Method>
+        <Description>選択した画像IDとテンプレートIDから定型文を生成</Description>
+        <RequestBody>
+          <Parameter>imageIds (配列)</Parameter>
+          <Parameter>templateId</Parameter>
+        </RequestBody>
+        <Response>
+          <Parameter>text (生成された定型文)</Parameter>
+        </Response>
+      </Endpoint>
+    </Endpoints>
+  </APIServer>
+</SystemIntegration>
