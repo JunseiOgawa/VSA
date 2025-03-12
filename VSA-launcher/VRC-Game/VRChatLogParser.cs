@@ -26,11 +26,15 @@ namespace VSA_launcher
         private readonly Regex _worldEntryPattern = new Regex(@"Entering Room: (.*?)(?:\n|$)", RegexOptions.Compiled);
         private readonly Regex _worldIdPattern = new Regex(@"wrld_[0-9a-fA-F\-]+", RegexOptions.Compiled);
         private readonly Regex _friendsPattern = new Regex(@"Friends in this instance:(.*?)(?:\n|$)", RegexOptions.Compiled);
+        // ユーザー名（撮影者）を抽出するためのパターン
+        private readonly Regex _usernamePattern = new Regex(@"Authenticated as: (.*?)(?:\n|$)", RegexOptions.Compiled);
         
         // 解析結果の保持
         public string CurrentWorldName { get; private set; } = "Unknown World";
         public string CurrentWorldId { get; private set; } = "";
         public List<string> CurrentFriends { get; private set; } = new List<string>();
+        // 撮影者（ユーザー名）を保持するプロパティを追加
+        public string Username { get; private set; } = "Unknown User";
         public DateTime LastLogParseTime { get; private set; }
         public bool IsValidLogFound { get; private set; }
         
@@ -171,6 +175,9 @@ namespace VSA_launcher
                 // フレンドリストの解析
                 ExtractFriendsList(logContent);
                 
+                // ユーザー名（撮影者）の解析
+                ExtractUsername(logContent);
+                
                 LastLogParseTime = DateTime.Now;
                 return true;
             }
@@ -252,6 +259,25 @@ namespace VSA_launcher
         }
 
         /// <summary>
+        /// ログ内容からユーザー名を抽出
+        /// </summary>
+        private void ExtractUsername(string logContent)
+        {
+            var usernameMatches = _usernamePattern.Matches(logContent);
+            if (usernameMatches.Count > 0)
+            {
+                // 最後の認証情報を取得
+                string username = usernameMatches[usernameMatches.Count - 1].Groups[1].Value.Trim();
+                
+                // ユーザー名が空でない場合のみ更新
+                if (!string.IsNullOrEmpty(username))
+                {
+                    Username = username;
+                }
+            }
+        }
+
+        /// <summary>
         /// フレンドリストを指定の区切り文字で結合した文字列を取得
         /// </summary>
         /// <param name="separator">区切り文字（デフォルトはドット）</param>
@@ -279,6 +305,9 @@ namespace VSA_launcher
                 
                 // フレンド情報（.区切り）
                 { "Friends", GetFriendsString() },
+                
+                // 撮影者情報
+                { "Username", Username },
                 
                 // 撮影日時
                 { "CaptureTime", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") }

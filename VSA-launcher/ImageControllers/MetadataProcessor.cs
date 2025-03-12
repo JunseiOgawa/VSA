@@ -45,6 +45,7 @@ namespace VSA_launcher
                 {
                     { "WorldName", _logParser.CurrentWorldName ?? "Unknown" },
                     { "WorldID", _logParser.CurrentWorldId ?? "Unknown" },
+                    { "Username", _logParser.Username ?? "Unknown User" },
                     { "CaptureTime", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") },
                     { "VSA", "true" } // 処理済みフラグを追加
                 };

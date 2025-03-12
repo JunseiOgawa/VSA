@@ -4,6 +4,7 @@ import os
 import sys
 import socket
 import argparse
+import sqlite3
 from models import init_db
 from routes import register_routes
 from services.sync_service import sync_settings_from_json, update_sync_status
@@ -54,6 +55,65 @@ def sync_settings_on_startup():
     except Exception as e:
         print(f"設定同期エラー: {str(e)}")
 
+def run_migrations(db_path):
+    """データベースマイグレーションを実行"""
+    try:
+        print("データベースマイグレーションを実行中...")
+        
+        # データベースが存在するか確認
+        if not os.path.exists(db_path):
+            print(f"データベースがまだ存在しません: {db_path}")
+            return
+            
+        # SQLite接続
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        
+        # image_metadataテーブルに存在するかを確認
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='image_metadata'")
+        if not cursor.fetchone():
+            print("image_metadataテーブルが存在しないため、マイグレーションをスキップします")
+            return
+            
+        # username列の有無を確認
+        cursor.execute("PRAGMA table_info(image_metadata)")
+        columns = cursor.fetchall()
+        column_names = [column[1] for column in columns]
+        
+        if 'username' not in column_names:
+            print("username列を追加中...")
+            cursor.execute("ALTER TABLE image_metadata ADD COLUMN username TEXT")
+            conn.commit()
+            print("マイグレーション成功: username列を追加しました")
+        
+        conn.close()
+    except Exception as e:
+        print(f"マイグレーションエラー: {str(e)}")
+
+def migrate_database(source_db_path, target_db_path):
+    """古いデータベースから新しいデータベースに内容を移行する"""
+    if not os.path.exists(source_db_path):
+        print(f"移行元データベースが見つかりません: {source_db_path}")
+        return False
+    
+    # 単純にコピーするか、SQLiteのバックアップAPIを使用
+    import shutil
+    
+    # ターゲットディレクトリが存在することを確認
+    target_dir = os.path.dirname(target_db_path)
+    if not os.path.exists(target_dir):
+        os.makedirs(target_dir)
+    
+    # 既存のデータベースがある場合はバックアップ
+    if os.path.exists(target_db_path):
+        backup_path = f"{target_db_path}.bak"
+        shutil.copy2(target_db_path, backup_path)
+        print(f"既存のデータベースをバックアップしました: {backup_path}")
+    
+    # データベースファイルをコピー
+    shutil.copy2(source_db_path, target_db_path)
+    return True
+
 def main():
     """メイン関数: サーバーの初期化と起動"""
     parser = argparse.ArgumentParser(description='VSA Backend API Server')
@@ -62,16 +122,33 @@ def main():
     parser.add_argument('--dev', action='store_true', help='Development mode')
     parser.add_argument('--db-path', type=str, default=None, help='Path to SQLite database')
     parser.add_argument('--no-sync', action='store_true', help='Skip settings synchronization')
+    parser.add_argument('--migrate-old-db', action='store_true', help='Migrate data from old database')
     args = parser.parse_args()
     
-    # データベースパスの設定
+    # データベースパスの設定 - ルートディレクトリに変更
     if not args.db_path:
-        # デフォルトのデータパスを設定
-        app_data_dir = os.path.join(os.environ.get('APPDATA', os.path.expanduser('~')), 'VRC-SnapArchive')
-        os.makedirs(app_data_dir, exist_ok=True)
-        db_path = os.path.join(app_data_dir, 'vsa_data.db')
+        # プロジェクトルートディレクトリの取得（backendの親ディレクトリ）
+        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        db_path = os.path.join(base_dir, 'vsa_data.db')
+        
+        # 古いデータベースのパス
+        old_db_path = os.path.join(os.environ.get('APPDATA', os.path.expanduser('~')), 
+                                   'VRC-SnapArchive', 'vsa_data.db')
+        
+        # 古いDBが存在し、新しいDBが存在しない場合、または移行フラグが設定されている場合
+        if args.migrate_old_db and os.path.exists(old_db_path):
+            if not os.path.exists(db_path) or args.migrate_old_db:
+                try:
+                    print(f"古いデータベースから新しい場所にデータを移行します...")
+                    migrate_database(old_db_path, db_path)
+                    print(f"データベース移行完了: {old_db_path} -> {db_path}")
+                except Exception as e:
+                    print(f"データベース移行エラー: {str(e)}")
     else:
         db_path = args.db_path
+    
+    # マイグレーションを実行
+    run_migrations(db_path)
     
     # データベース初期化
     db_session = init_db(db_path)

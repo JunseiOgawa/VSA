@@ -295,6 +295,9 @@ namespace VSA_launcher
                         // フレンド情報（.区切り）
                         { "Friends", string.Join(".", _logParser.CurrentFriends) },
                         
+                        // 撮影者情報
+                        { "Username", _logParser.Username ?? "Unknown User" },
+                        
                         // 撮影日時
                         { "CaptureTime", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") }
                     };

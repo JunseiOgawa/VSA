@@ -70,6 +70,11 @@ namespace VSA_launcher
                     textChunks.Add(CreateTextChunkData("WorldInfo", worldInfo));
                 }
                 
+                if (metadata.ContainsKey("Username"))
+                {
+                    textChunks.Add(CreateTextChunkData("Username", metadata["Username"]));
+                }
+                
                 if (metadata.ContainsKey("CaptureTime"))
                 {
                     textChunks.Add(CreateTextChunkData("CaptureTime", metadata["CaptureTime"]));
@@ -88,6 +93,8 @@ namespace VSA_launcher
                     description.AppendLine($"World: {metadata["WorldName"]}");
                 if (metadata.ContainsKey("WorldID"))
                     description.AppendLine($"ID: {metadata["WorldID"]}");
+                if (metadata.ContainsKey("Username"))
+                    description.AppendLine($"User: {metadata["Username"]}");
                 if (metadata.ContainsKey("CaptureTime"))
                     description.AppendLine($"Time: {metadata["CaptureTime"]}");
                 

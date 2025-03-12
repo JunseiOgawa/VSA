@@ -12,7 +12,7 @@ def get_db_session():
     return current_app.config['DB_SESSION']
 
 #images.pyから受け取ったimage_dataを使って検索を行う 検索方式はORMを使う
-def get_images(world_name=None, friend_name=None, date_from=None, date_to=None):
+def get_images(world_name=None, friend_name=None, username=None, date_from=None, date_to=None):
     """条件に基づいて画像を検索"""
     session = get_db_session()
     query = session.query(ImageMetadata)
@@ -24,6 +24,10 @@ def get_images(world_name=None, friend_name=None, date_from=None, date_to=None):
     if friend_name:
         # JSONフィールド内の検索（SQLite実装に注意）
         query = query.filter(ImageMetadata.friends.like(f'%{friend_name}%'))
+    
+    # ユーザー名（撮影者）での検索
+    if username:
+        query = query.filter(ImageMetadata.username.like(f'%{username}%'))
     
     # 日付範囲
     if date_from:

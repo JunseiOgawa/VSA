@@ -11,12 +11,18 @@ def list_images():
         # クエリパラメータから検索条件を取得
         world_name = request.args.get('world_name')
         friend_name = request.args.get('friend_name')
+        username = request.args.get('username')  # ユーザー名（撮影者）パラメータを追加
         date_from = request.args.get('date_from')
         date_to = request.args.get('date_to')
         
         # サービスレイヤーの関数を呼び出して検索 servicesに送る
-        images = get_images(world_name=world_name, friend_name=friend_name, 
-                           date_from=date_from, date_to=date_to)
+        images = get_images(
+            world_name=world_name, 
+            friend_name=friend_name,
+            username=username,  # ユーザー名パラメータを渡す 
+            date_from=date_from, 
+            date_to=date_to
+        )
         return jsonify({'success': True, 'images': images})
     except Exception as e:
         # エラーが発生した場合はエラーレスポンスを返す

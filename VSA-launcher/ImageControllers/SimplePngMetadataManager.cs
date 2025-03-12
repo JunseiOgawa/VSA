@@ -123,6 +123,8 @@ namespace VSA_launcher
                     descBuilder.AppendLine($"World: {metadata["WorldName"]}");
                 if (metadata.ContainsKey("WorldID"))
                     descBuilder.AppendLine($"ID: {metadata["WorldID"]}");
+                if (metadata.ContainsKey("Username"))
+                    descBuilder.AppendLine($"User: {metadata["Username"]}");
                 if (metadata.ContainsKey("CaptureTime"))
                     descBuilder.AppendLine($"Time: {metadata["CaptureTime"]}");
                 if (metadata.ContainsKey("Friends") && !string.IsNullOrEmpty(metadata["Friends"]))
