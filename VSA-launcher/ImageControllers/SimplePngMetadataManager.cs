@@ -305,41 +305,32 @@ namespace VSA_launcher
         {
             try
             {
-                bool createdNewParser = false;
-                if (logParser == null)
+                // ログパーサーがあればメタデータを取得
+                if (logParser != null)
                 {
-                    logParser = new VRChatLogParser(false);
-                    createdNewParser = true;
-                    logParser.ParseLatestLog();
-                }
-                
-                // VRChatLogParserからのメタデータを取得
-                var metadata = new Dictionary<string, string>
-                {
-                    { "VSACheck", "true" },
-                    { "WorldName", logParser.CurrentWorldName ?? "Unknown" },
-                    { "WorldID", logParser.CurrentWorldId ?? "Unknown" },
-                    { "CaptureTime", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") },
-                    { "Friends", logParser.GetFriendsString() }
-                };
-                
-                // 追加メタデータがあれば合併
-                if (additionalMetadata != null && additionalMetadata.Count > 0)
-                {
-                    foreach (var item in additionalMetadata)
+                    var metadata = new Dictionary<string, string>
                     {
-                        metadata[item.Key] = item.Value;
+                        { "VSACheck", "true" },
+                        { "WorldName", logParser.CurrentWorldName ?? "Unknown" },
+                        { "WorldID", logParser.CurrentWorldId ?? "Unknown" },
+                        // 撮影者情報を明示的に追加
+                        { "Username", logParser.Username ?? "Unknown User" },
+                        { "CaptureTime", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") },
+                        { "Friends", logParser.GetFriendsString() }
+                    };
+                    
+                    // 追加メタデータがあれば合併
+                    if (additionalMetadata != null && additionalMetadata.Count > 0)
+                    {
+                        foreach (var item in additionalMetadata)
+                        {
+                            metadata[item.Key] = item.Value;
+                        }
                     }
+                    
+                    return AddMetadataToPng(sourceFilePath, targetFilePath, metadata);
                 }
-                
-                bool result = AddMetadataToPng(sourceFilePath, targetFilePath, metadata);
-                
-                if (createdNewParser && logParser is IDisposable disposable)
-                {
-                    disposable.Dispose();
-                }
-                
-                return result;
+                return false;
             }
             catch (Exception ex)
             {

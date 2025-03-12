@@ -587,39 +587,37 @@ namespace VSA_launcher
                 return;
             }
 
-            // 通常の単一フォルダ監視かどうかをチェック
-            bool isMonthFolderStructure = IsMonthFolderStructure(_settings.ScreenshotPath);
+            // 監視開始前に一旦停止
+            _fileWatcher.StopWatching();
 
-            bool success;
-
-            if (isMonthFolderStructure)
+            // ディレクトリが存在するか確認
+            if (!Directory.Exists(_settings.ScreenshotPath))
             {
-                // 月別フォルダ構造を検出した場合、特別な監視を開始
-                success = _fileWatcher.StartWatchingWithMonthFolders(_settings.ScreenshotPath);
+                UpdateStatusInfo("監視エラー", $"指定されたフォルダが見つかりません: {_settings.ScreenshotPath}");
+                return;
+            }
 
-                if (success)
+            // 月別フォルダ構造を検出し、適切な監視方法を選択
+            bool success = _fileWatcher.StartWatching(_settings.ScreenshotPath);
+
+            if (success)
+            {
+                if (_fileWatcher.CurrentMonthFolder != null)
                 {
-                    string currentMonthFolder = _fileWatcher.CurrentMonthFolder ?? "未検出";
+                    // 月別フォルダ監視が自動的に開始された
                     UpdateStatusInfo("月別フォルダ監視開始",
-                        $"親フォルダ: {_settings.ScreenshotPath}, 現在の月: {Path.GetFileName(currentMonthFolder)}");
+                        $"親フォルダ: {_settings.ScreenshotPath}, 現在の月: {Path.GetFileName(_fileWatcher.CurrentMonthFolder)}");
+                }
+                else
+                {
+                    // 通常の単一フォルダ監視
+                    UpdateStatusInfo("監視開始", $"フォルダ: {_settings.ScreenshotPath}");
                 }
             }
             else
             {
-                // 通常の単一フォルダ監視
-                success = _fileWatcher.StartWatching(_settings.ScreenshotPath);
-
-                if (success)
-                {
-                    UpdateStatusInfo("監視開始", $"フォルダ: {_settings.ScreenshotPath}");
-                }
+                UpdateStatusInfo("監視開始失敗", "フォルダの監視を開始できませんでした");
             }
-        }
-
-        // フォルダ構造が月別かどうかを判定
-        private bool IsMonthFolderStructure(string folderPath)
-        {
-            return _folderManager.IsMonthFolderStructure(folderPath);
         }
 
         private void FileWatcher_StatusChanged(object? sender, StatusChangedEventArgs e)

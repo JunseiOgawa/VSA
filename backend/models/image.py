@@ -17,9 +17,7 @@ class ImageMetadata(Base):
     capture_time = Column(DateTime)  # 撮影時刻
     created_at = Column(DateTime, default=datetime.now)  # レコード作成日時
     updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)  # 更新日時
-    tags = Column(Text)  # タグ情報をJSON形式で保存
-    rating = Column(Integer)  # 評価（1-5星など）
-        
+    
     def __init__(self, file_path, file_name, world_name=None, world_id=None, 
                  username=None, capture_time=None, friends=None, extra_metadata=None):
         self.file_path = file_path
@@ -53,8 +51,13 @@ class ImageMetadata(Base):
             'friends': json.loads(self.friends) if self.friends else [],
             'capture_time': self.capture_time.isoformat() if self.capture_time else None,
             'created_at': self.created_at.isoformat(),
-            'updated_at': self.updated_at.isoformat(),
-            'tags': json.loads(self.tags) if self.tags else [],
-            'rating': self.rating
+            'updated_at': self.updated_at.isoformat() 
         }
         return result
+
+def get_images(world_name=None, friend_name=None, username=None, date_from=None, date_to=None):
+    # ... 既存コード ...
+    # ユーザー名（撮影者）での検索
+    if username:
+        query = query.filter(ImageMetadata.username.like(f'%{username}%'))
+    # ... 既存コード ...

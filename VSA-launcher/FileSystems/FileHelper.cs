@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Threading; // Thread.Sleepを使用するために追加
 
 namespace VSA_launcher
 {

@@ -90,6 +90,37 @@ def run_migrations(db_path):
     except Exception as e:
         print(f"マイグレーションエラー: {str(e)}")
 
+def run_migrations_with_alembic(db_path):
+    """Alembicマイグレーションを実行"""
+    try:
+        print("Alembicマイグレーションを実行中...")
+        
+        # バックエンドディレクトリのパスを取得
+        backend_dir = os.path.dirname(os.path.abspath(__file__))
+        
+        # カレントディレクトリを一時的に変更
+        original_dir = os.getcwd()
+        os.chdir(backend_dir)
+        
+        # Alembic設定を読み込み
+        from alembic.config import Config
+        from alembic import command
+        
+        alembic_cfg = Config('alembic.ini')
+        
+        # SQLiteデータベースのURIを設定ファイルで更新
+        alembic_cfg.set_main_option('sqlalchemy.url', f'sqlite:///{db_path}')
+        
+        # マイグレーションを最新状態に更新
+        command.upgrade(alembic_cfg, 'head')
+        
+        print("マイグレーションが完了しました")
+        
+        # カレントディレクトリを元に戻す
+        os.chdir(original_dir)
+    except Exception as e:
+        print(f"マイグレーションエラー: {str(e)}")
+
 def migrate_database(source_db_path, target_db_path):
     """古いデータベースから新しいデータベースに内容を移行する"""
     if not os.path.exists(source_db_path):
@@ -123,6 +154,7 @@ def main():
     parser.add_argument('--db-path', type=str, default=None, help='Path to SQLite database')
     parser.add_argument('--no-sync', action='store_true', help='Skip settings synchronization')
     parser.add_argument('--migrate-old-db', action='store_true', help='Migrate data from old database')
+    parser.add_argument('--no-migrate', action='store_true', help='Skip database migration')
     args = parser.parse_args()
     
     # データベースパスの設定 - ルートディレクトリに変更
@@ -147,8 +179,9 @@ def main():
     else:
         db_path = args.db_path
     
-    # マイグレーションを実行
-    run_migrations(db_path)
+    # 従来の手動マイグレーションの代わりにAlembicを使用
+    if not args.no_migrate:
+        run_migrations_with_alembic(db_path)
     
     # データベース初期化
     db_session = init_db(db_path)

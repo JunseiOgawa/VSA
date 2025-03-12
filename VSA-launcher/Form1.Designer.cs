@@ -234,11 +234,11 @@
             // 
             label1.AutoSize = true;
             label1.ForeColor = Color.Red;
-            label1.Location = new Point(48, 285);
+            label1.Location = new Point(30, 285);
             label1.Name = "label1";
-            label1.Size = new Size(212, 15);
+            label1.Size = new Size(230, 15);
             label1.TabIndex = 12;
-            label1.Text = "メインアプリを起動しないと機能は使えません";
+            label1.Text = "メインアプリを起動しないとこの機能は使えません";
             label1.Click += label1_Click;
             // 
             // fileSubdivision_Group

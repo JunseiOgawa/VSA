@@ -1,6 +1,7 @@
 import os
 import sys
 import subprocess
+import json
 
 def add_tags_rating_columns():
     """tags と rating カラムを追加するマイグレーションを作成して適用する"""
@@ -12,6 +13,9 @@ def add_tags_rating_columns():
         os.chdir(backend_dir)
         
         print(f"バックエンドディレクトリ: {backend_dir}")
+        
+        # alembic.ini が存在するか確認し、なければ作成
+        setup_alembic()
         
         # モデルファイルを更新
         update_image_model()
@@ -29,6 +33,44 @@ def add_tags_rating_columns():
         print(f"エラー: {str(e)}")
         return False
 
+def setup_alembic():
+    """Alembicの設定ファイルを作成し初期化する"""
+    # alembic.ini が存在するか確認
+    if not os.path.exists('alembic.ini'):
+        print("alembic.ini が見つかりません。新しく作成します...")
+        
+        # alembic init を実行
+        subprocess.run(["alembic", "init", "migrations"], check=True)
+        
+        # alembic.ini を編集
+        with open('alembic.ini', 'r') as f:
+            config = f.read()
+        
+        # SQLAlchemy URL を設定 (SQLite を使用する例)
+        config = config.replace('sqlalchemy.url = driver://user:pass@localhost/dbname', 
+                              'sqlalchemy.url = sqlite:///app.db')
+        
+        with open('alembic.ini', 'w') as f:
+            f.write(config)
+        
+        # env.py を編集してモデルをインポート
+        env_path = os.path.join('migrations', 'env.py')
+        with open(env_path, 'r') as f:
+            env_content = f.read()
+        
+        # モデルのインポート行を追加
+        import_line = "\nfrom models import Base\n"
+        target = "from alembic import context"
+        env_content = env_content.replace(target, target + import_line)
+        
+        # target_metadata を設定
+        env_content = env_content.replace("target_metadata = None", "target_metadata = Base.metadata")
+        
+        with open(env_path, 'w') as f:
+            f.write(env_content)
+        
+        print("Alembicの設定が完了しました")
+
 def update_image_model():
     """image.pyモデルにtagsとratingカラムを追加"""
     model_path = os.path.join('models', 'image.py')
@@ -39,6 +81,14 @@ def update_image_model():
     
     with open(model_path, 'r', encoding='utf-8') as f:
         lines = f.readlines()
+    
+    # jsonモジュールのインポートを確認・追加
+    has_json_import = any('import json' in line for line in lines)
+    if not has_json_import:
+        for i, line in enumerate(lines):
+            if line.startswith('import ') or line.startswith('from '):
+                lines.insert(i + 1, 'import json\n')
+                break
     
     # カラム定義を追加
     column_added = False
