@@ -15,6 +15,14 @@
     <PackageReference Include="SixLabors.ImageSharp" Version="3.1.7" />
     <PackageReference Include="System.Diagnostics.PerformanceCounter" Version="9.0.2" />
     <PackageReference Include="System.Drawing.Common" Version="8.0.3" />
+    
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\LICENSE\**\*.*">
+      <Link>LICENSE\%(RecursiveDir)%(Filename)%(Extension)</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 
 </Project>

@@ -1,0 +1,25 @@
+# VrcSnapArchiveKai サードパーティライセンス
+
+このソフトウェアは以下のオープンソースライブラリを使用しています：
+
+## System.Drawing.Common
+- ライセンス: MIT
+- ソース: https://github.com/dotnet/runtime
+- ライセンス全文: https://github.com/dotnet/runtime/blob/main/LICENSE.TXT
+
+## SixLabors.ImageSharp
+- ライセンス: Six Labors Split License (条件を満たす場合はApache 2.0)
+- ソース: https://github.com/SixLabors/ImageSharp
+- ライセンス全文: LICENSE/SixLabors.ImageSharp.txt
+
+## Newtonsoft.Json
+- ライセンス: MIT
+- ソース: https://github.com/JamesNK/Newtonsoft.Json
+- ライセンス全文: https://github.com/JamesNK/Newtonsoft.Json/blob/master/LICENSE.md
+
+## SharpZipLib
+- ライセンス: MIT
+- ソース: https://github.com/icsharpcode/SharpZipLib
+- ライセンス全文: https://github.com/icsharpcode/SharpZipLib/blob/master/LICENSE.txt
+
+各ライセンスの詳細については上記のリンク先をご覧ください。
