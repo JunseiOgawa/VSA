@@ -1,5 +1,7 @@
 using System.Diagnostics; // Process関連の操作のため
+using System.Text;
 using System.Text.RegularExpressions;
+using System.Drawing.Imaging;
 
 namespace VSA_launcher
 {
@@ -18,6 +20,7 @@ namespace VSA_launcher
         private ImageProcessor _imageProcessor = null!;
         private FolderStructureManager _folderManager = null!;
         private FileNameGenerator _fileNameGenerator = null!;
+        private string _currentMetadataImagePath = string.Empty;
 
         public VSA_launcher()
         {
@@ -45,6 +48,11 @@ namespace VSA_launcher
                 weekRadio_Button.CheckedChanged += radioButton_CheckedChanged;
                 dayRadio_Button.CheckedChanged += radioButton_CheckedChanged;
                 fileSubdivision_checkBox.CheckedChanged += checkBox3_CheckedChanged;
+
+                // テスト画像生成ボタンのイベント登録
+                CreateTestImage_button.Click += CreateTestImage_button_Click;
+                // PictureBoxクリックイベントの登録
+                PngPreview_pictureBox.Click += PngPreview_pictureBox_Click;
 
                 // ファイル名フォーマットのコンボボックス変更イベント追加
                 if (fileRename_comboBox != null)
@@ -169,7 +177,7 @@ namespace VSA_launcher
 
             // フォーマットに基づくプレビューを生成
             string previewName = _fileNameGenerator.GeneratePreviewFileName(_settings.FileRenaming.Format);
-            
+
             // ラベルに表示
             fileRename_label.Text = $"例: {previewName}";
         }
@@ -312,9 +320,9 @@ namespace VSA_launcher
         // メインアプリ起動
         // publicに変更してSystemTrayIconからアクセスできるようにする
         public void LaunchMainApplication()
-        {   
+        {
             MessageBox.Show(
-                "現在メインアプリは開発中です。完成をお待ちください。\n\n" + 
+                "現在メインアプリは開発中です。完成をお待ちください。\n\n" +
                 "最新情報は下記のURLからご確認ください：\n" +
                 "Booth: https://fefaether-vrc.booth.pm/\n" +
                 "Twitter(X): https://x.com/fefaethervrc",
@@ -329,7 +337,7 @@ namespace VSA_launcher
         private void UpdateLaunchButtonState()
         {
             bool isRunning = IsMainAppRunning();
-            
+
             // UIスレッドでの実行を保証
             if (InvokeRequired)
             {
@@ -340,7 +348,7 @@ namespace VSA_launcher
             // ボタンの状態を更新
             launchMainApp_button.Enabled = !isRunning;
             launchMainApp_button.Text = isRunning ? "アプリ実行中" : "アプリを起動する";
-            
+
             // システムトレイのメニュー項目も更新
             メインアプリケーションを起動ToolStripMenuItem.Enabled = !isRunning;
             メインアプリケーションを起動ToolStripMenuItem.Text = isRunning ? "アプリ実行中" : "メインアプリケーションを起動";
@@ -369,7 +377,7 @@ namespace VSA_launcher
                         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
                         "SnapArchiveKai",
                         ".app_running");
-                        
+
                     if (File.Exists(lockFilePath))
                     {
                         try
@@ -395,7 +403,7 @@ namespace VSA_launcher
                         {
                             return true;
                         }
-                        
+
                         if (!createdNew)
                         {
                             mutex.ReleaseMutex();
@@ -540,6 +548,232 @@ namespace VSA_launcher
         private void launchMainApp_button_Click(object sender, EventArgs e)
         {
             LaunchMainApplication();
+        }
+
+        private void screenShotFile_textBox_TextChanged(object sender, EventArgs e)
+        {
+
+        }
+
+        private void PngMetaDate_button_Click(object sender, EventArgs e)
+        {
+            // ファイルをオープンして選択したファイルの情報を表示
+            OpenFileDialog openFileDialog = new OpenFileDialog();
+            openFileDialog.Filter = "PNG画像|*.png|JPG画像|*.jpg;*.jpeg|すべてのファイル|*.*";
+            openFileDialog.Title = "メタデータを表示する画像を選択";
+
+            if (openFileDialog.ShowDialog() == DialogResult.OK)
+            {
+                PngMetaDate_textBox.Text = openFileDialog.FileName;
+                
+                // 選択した画像を表示してメタデータを解析
+                DisplayImageAndMetadata(openFileDialog.FileName);
+            }
+        }
+
+        // 画像をプレビューに表示し、メタデータを解析して表示するメソッド
+        public void DisplayImageAndMetadata(string imagePath)
+        {
+            if (InvokeRequired)
+            {
+                BeginInvoke(new Action(() => DisplayImageAndMetadata(imagePath)));
+                return;
+            }
+
+            try
+            {
+                _currentMetadataImagePath = imagePath;
+
+                // 画像プレビューの表示
+                if (PngPreview_pictureBox.Image != null)
+                {
+                    PngPreview_pictureBox.Image.Dispose();
+                    PngPreview_pictureBox.Image = null;
+                }
+
+                // 画像ファイルが存在するか確認
+                if (string.IsNullOrEmpty(imagePath) || !File.Exists(imagePath))
+                {
+                    UpdateStatusInfo("エラー", "ファイルが見つかりません");
+                    return;
+                }
+
+                // 画像を読み込んで表示
+                using (var stream = new FileStream(imagePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+                {
+                    PngPreview_pictureBox.Image = Image.FromStream(stream);
+                    PngPreview_pictureBox.SizeMode = PictureBoxSizeMode.Zoom;
+                }
+
+                // メタデータの取得と表示
+                Dictionary<string, string> metadata = MetadataAnalyzer.ReadMetadataFromImage(imagePath);
+                DisplayMetadata(metadata);
+            }
+            catch (Exception ex)
+            {
+                UpdateStatusInfo("画像読み込みエラー", ex.Message);
+            }
+        }
+
+        // メタデータをテキストボックスなどに表示
+        private void DisplayMetadata(Dictionary<string, string> metadata)
+        {
+            // デバッグログ出力
+            System.Diagnostics.Debug.WriteLine($"DisplayMetadata called with {metadata.Count} items");
+            foreach (var pair in metadata)
+            {
+                System.Diagnostics.Debug.WriteLine($"  {pair.Key} = {pair.Value}");
+            }
+
+            // メタデータの表示をクリア
+            worldName_richTextBox.Text = string.Empty;
+            worldFriends_richTextBox.Text = string.Empty;
+            photoTime_textBox.Text = string.Empty;
+            photographName_textBox.Text = string.Empty;
+
+            // メタデータを表示
+            if (metadata.TryGetValue("WorldName", out string worldName))
+            {
+                worldName_richTextBox.Text = worldName;
+            }
+            
+            if (metadata.TryGetValue("Friends", out string friends))
+            {
+                worldFriends_richTextBox.Text = friends;
+            }
+            
+            if (metadata.TryGetValue("CaptureTime", out string captureTime))
+            {
+                photoTime_textBox.Text = captureTime;
+            }
+            
+            if (metadata.TryGetValue("Username", out string username))
+            {
+                photographName_textBox.Text = username;
+            }
+
+            // メタデータの存在確認とステータス表示
+            if (metadata.Count == 0)
+            {
+                UpdateStatusInfo("メタデータなし", "この画像にはVSAメタデータが含まれていません");
+            }
+            else
+            {
+                UpdateStatusInfo("メタデータ読み込み完了", $"{metadata.Count}項目のメタデータを読み込みました");
+            }
+        }
+
+        // PictureBoxのクリックイベント - 画像を外部ビューアで開く
+        private void PngPreview_pictureBox_Click(object sender, EventArgs e)
+        {
+            if (!string.IsNullOrEmpty(_currentMetadataImagePath) && File.Exists(_currentMetadataImagePath))
+            {
+                try
+                {
+                    // 画像ファイルをデフォルトのビューアで開く
+                    Process.Start(new ProcessStartInfo
+                    {
+                        FileName = _currentMetadataImagePath,
+                        UseShellExecute = true
+                    });
+                }
+                catch (Exception ex)
+                {
+                    UpdateStatusInfo("画像を開けませんでした", ex.Message);
+                }
+            }
+        }
+
+        // テスト画像作成ボタン用のコード
+        private void CreateTestImage_button_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                // テスト用メタデータ辞書
+                var metadata = new Dictionary<string, string>
+                {
+                    { "VSACheck", "true" },
+                    { "WorldName", "テストワールド名" },
+                    { "WorldID", "wrld_test-world-id-123" },
+                    { "Username", "テストユーザー名" },
+                    { "CaptureTime", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") },
+                    { "Friends", "フレンド1, フレンド2, フレンド3, 日本語名前" },
+                    { "TestKey", "これはテストです" }
+                };
+                
+                // 保存先を選択
+                SaveFileDialog saveDialog = new SaveFileDialog
+                {
+                    Filter = "PNG画像|*.png",
+                    Title = "テスト画像の保存先を選択",
+                    FileName = "test_metadata.png"
+                };
+                
+                if (saveDialog.ShowDialog() != DialogResult.OK)
+                    return;
+                
+                // テスト用の画像を作成
+                using (Bitmap bmp = new Bitmap(400, 300))
+                using (Graphics g = Graphics.FromImage(bmp))
+                {
+                    g.Clear(Color.White);
+                    
+                    // 日本語のテキストを正しく表示
+                    using (Font font = new Font("Yu Gothic UI", 20))
+                    {
+                        g.DrawString("メタデータテスト画像", font, Brushes.Black, new PointF(50, 120));
+                    }
+                    
+                    // 一時ファイルとして保存
+                    string tempPath = Path.GetTempFileName() + ".png";
+                    bmp.Save(tempPath, ImageFormat.Png);
+                    
+                    // デバッグ情報を表示
+                    StringBuilder logSb = new StringBuilder();
+                    logSb.AppendLine("テストデータ:");
+                    foreach (var entry in metadata)
+                    {
+                        logSb.AppendLine($"  {entry.Key}: {entry.Value}");
+                    }
+                    System.Diagnostics.Debug.WriteLine(logSb.ToString());
+                    
+                    // PngMetadataManager を使ってメタデータを追加して保存
+                    bool success = PngMetadataManager.AddMetadataToPng(tempPath, saveDialog.FileName, metadata);
+                    
+                    // 一時ファイルの削除
+                    try { File.Delete(tempPath); } catch { }
+                    
+                    if (success)
+                    {
+                        // メタデータの検証
+                        var pngMetadata = PngMetadataManager.ReadMetadataFromPng(saveDialog.FileName);
+                        
+                        StringBuilder sb = new StringBuilder();
+                        sb.AppendLine("テスト画像作成結果:");
+                        sb.AppendLine($"保存先: {saveDialog.FileName}");
+                        sb.AppendLine("");
+                        sb.AppendLine($"PngMetadataManager (tEXtチャンク): {pngMetadata.Count}項目");
+                        foreach (var pair in pngMetadata)
+                        {
+                            sb.AppendLine($"   {pair.Key}: {pair.Value}");
+                        }
+                        
+                        MessageBox.Show(sb.ToString(), "テスト画像作成成功", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        
+                        // UIに表示
+                        PngMetaDate_textBox.Text = saveDialog.FileName;
+                        DisplayImageAndMetadata(saveDialog.FileName);
+                    }
+                    else
+                    {
+                        MessageBox.Show("テスト画像の作成に失敗しました。", "エラー", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"テスト画像作成エラー: {ex.Message}\n{ex.StackTrace}", "エラー", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
         }
     }
 

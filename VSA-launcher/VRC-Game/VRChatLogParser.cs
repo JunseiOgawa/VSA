@@ -25,9 +25,13 @@ namespace VSA_launcher
         // パターンマッチング用の正規表現（コンパイル済み）
         private readonly Regex _worldEntryPattern = new Regex(@"Entering Room: (.*?)(?:\n|$)", RegexOptions.Compiled);
         private readonly Regex _worldIdPattern = new Regex(@"wrld_[0-9a-fA-F\-]+", RegexOptions.Compiled);
-        private readonly Regex _friendsPattern = new Regex(@"Friends in this instance:(.*?)(?:\n|$)", RegexOptions.Compiled);
+
+        // フレンド検出用の正規表現
+        private readonly Regex _playerJoinedPattern = new Regex(@"\[Behaviour\] OnPlayerJoin(?:ed|Complete) \((.*?)\)", RegexOptions.Compiled);
+        private readonly Regex _remotePlayerPattern = new Regex(@"\[Behaviour\] Initialized PlayerAPI ""(.*?)"" is remote", RegexOptions.Compiled);
+
         // ユーザー名（撮影者）を抽出するためのパターン
-        private readonly Regex _usernamePattern = new Regex(@"Authenticated as: (.*?)(?:\n|$)", RegexOptions.Compiled);
+        private readonly Regex _usernamePattern = new Regex(@"\[Behaviour\] Initialized PlayerAPI ""(.*?)"" is local", RegexOptions.Compiled);
         
         // 解析結果の保持
         public string CurrentWorldName { get; private set; } = "Unknown World";
@@ -237,25 +241,42 @@ namespace VSA_launcher
         /// </summary>
         private void ExtractFriendsList(string logContent)
         {
-            var friendsMatches = _friendsPattern.Matches(logContent);
-            if (friendsMatches.Count > 0)
+            // 一時的なフレンドリスト
+            var friendsList = new HashSet<string>();
+
+            // OnPlayerJoined/Complete パターンからフレンド名を抽出
+            var joinMatches = _playerJoinedPattern.Matches(logContent);
+            foreach (Match match in joinMatches)
             {
-                // 最後のフレンドリストエントリを取得
-                string friendsText = friendsMatches[friendsMatches.Count - 1].Groups[1].Value;
-                
-                // カンマで分割して整形
-                CurrentFriends = friendsText
-                    .Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries)
-                    .Select(f => f.Trim())
-                    .Where(f => !string.IsNullOrWhiteSpace(f))
-                    .Distinct() // 重複を削除
-                    .ToList();
+                if (match.Success && match.Groups.Count > 1)
+                {
+                    string friendName = match.Groups[1].Value.Trim();
+                    if (!string.IsNullOrEmpty(friendName))
+                    {
+                        friendsList.Add(friendName);
+                    }
+                }
             }
-            else
+
+            // リモートプレイヤーパターンからフレンド名を抽出
+            var remoteMatches = _remotePlayerPattern.Matches(logContent);
+            foreach (Match match in remoteMatches)
             {
-                // フレンドリストが見つからない場合は空リストにする
-                CurrentFriends.Clear();
+                if (match.Success && match.Groups.Count > 1)
+                {
+                    string friendName = match.Groups[1].Value.Trim();
+                    if (!string.IsNullOrEmpty(friendName))
+                    {
+                        friendsList.Add(friendName);
+                    }
+                }
             }
+
+            // リストを更新
+            CurrentFriends = friendsList.ToList();
+            
+            // デバッグ: フレンド検出のログ出力
+            Console.WriteLine($"[DEBUG] フレンド検出: {CurrentFriends.Count}人 - {string.Join(", ", CurrentFriends)}");
         }
 
         /// <summary>
@@ -263,17 +284,21 @@ namespace VSA_launcher
         /// </summary>
         private void ExtractUsername(string logContent)
         {
-            var usernameMatches = _usernamePattern.Matches(logContent);
-            if (usernameMatches.Count > 0)
+            var usernameMatch = _usernamePattern.Match(logContent);
+            if (usernameMatch.Success && usernameMatch.Groups.Count > 1)
             {
-                // 最後の認証情報を取得
-                string username = usernameMatches[usernameMatches.Count - 1].Groups[1].Value.Trim();
+                string username = usernameMatch.Groups[1].Value.Trim();
                 
                 // ユーザー名が空でない場合のみ更新
                 if (!string.IsNullOrEmpty(username))
                 {
                     Username = username;
+                    Console.WriteLine($"[DEBUG] 自分のユーザー名を検出: {username}");
                 }
+            }
+            else
+            {
+                Console.WriteLine("[DEBUG] 自分のユーザー名を検出できませんでした");
             }
         }
 

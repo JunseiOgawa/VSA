@@ -10,10 +10,6 @@ namespace VSA_launcher
         // 処理済みマーカーキー
         private const string PROCESSED_KEY = "VSACheck";
         
-        // メタデータ格納用のExifタグID（System.Drawingで使用）
-        private const int PropertyTagExifUserComment = 0x9286; // Exifコメントタグ
-        private const int PropertyTagImageDescription = 0x010E; // 画像説明
-        
         // PNG形式固有の定数
         private const int PNG_HEADER_SIZE = 8; // PNGシグネチャのサイズ
         private const int IHDR_CHUNK_SIZE = 25; // IHDRチャンクのサイズ（ヘッダ+データ+CRC）
@@ -21,7 +17,7 @@ namespace VSA_launcher
         private static readonly Encoding LATIN1 = Encoding.GetEncoding("ISO-8859-1"); // PNG仕様で定められたエンコーディング
         
         /// <summary>
-        /// PNGファイルにメタデータを追加（ネイティブtEXtチャンクを使用）
+        /// PNGファイルにメタデータを追加（tEXtチャンクのみを使用）
         /// </summary>
         public static bool AddMetadataToPng(string sourceFilePath, string targetFilePath, Dictionary<string, string> metadata)
         {
@@ -63,29 +59,37 @@ namespace VSA_launcher
                 string jsonData = DictionaryToJson(metadata);
                 textChunks.Add(CreateTextChunkData("VSA_Metadata", jsonData));
                 
-                // 2. 重要なメタデータは個別のチャンクにも保存
-                if (metadata.ContainsKey("WorldName") && metadata.ContainsKey("WorldID"))
+                // 2. 重要なメタデータは個別のチャンクにも保存（冗長化）
+                // 特に重要なフィールドはUTF-8でエンコードされることを確実にするため明示的に処理
+                if (metadata.TryGetValue("WorldName", out string worldName))
                 {
-                    string worldInfo = $"{metadata["WorldName"]}|{metadata["WorldID"]}";
-                    textChunks.Add(CreateTextChunkData("WorldInfo", worldInfo));
+                    // 確実にBase64エンコードされるよう明示的に処理
+                    textChunks.Add(CreateTextChunkData("WorldName", worldName));
+                }
+
+                if (metadata.TryGetValue("WorldID", out string worldId))
+                {
+                    textChunks.Add(CreateTextChunkData("WorldID", worldId));
+                }
+
+                if (metadata.TryGetValue("Username", out string username))
+                {
+                    // 確実にBase64エンコードされるよう明示的に処理
+                    textChunks.Add(CreateTextChunkData("Username", username));
+                }
+
+                if (metadata.TryGetValue("CaptureTime", out string captureTime))
+                {
+                    textChunks.Add(CreateTextChunkData("CaptureTime", captureTime));
+                }
+
+                if (metadata.TryGetValue("Friends", out string friends))
+                {
+                    // 確実にBase64エンコードされるよう明示的に処理
+                    textChunks.Add(CreateTextChunkData("Friends", friends));
                 }
                 
-                if (metadata.ContainsKey("Username"))
-                {
-                    textChunks.Add(CreateTextChunkData("Username", metadata["Username"]));
-                }
-                
-                if (metadata.ContainsKey("CaptureTime"))
-                {
-                    textChunks.Add(CreateTextChunkData("CaptureTime", metadata["CaptureTime"]));
-                }
-                
-                if (metadata.ContainsKey("Friends"))
-                {
-                    textChunks.Add(CreateTextChunkData("Friends", metadata["Friends"]));
-                }
-                
-                // 3. 説明文（一般的なビューアでも表示できるように）
+                // 3. 説明文を追加
                 StringBuilder description = new StringBuilder();
                 description.AppendLine("VRChat Snap Archive Info:");
                 
@@ -117,8 +121,8 @@ namespace VSA_launcher
             }
             catch (Exception ex)
             {
-                LogError($"ネイティブメタデータ追加エラー: {ex.Message}");
-                return SimplePngMetadataManager.AddMetadataToPng(sourceFilePath, targetFilePath, metadata);
+                LogError($"メタデータ追加エラー: {ex.Message}");
+                return false;
             }
         }
         
@@ -139,8 +143,32 @@ namespace VSA_launcher
             // 区切り用の 0（NULL）バイト
             byte[] separatorData = new byte[] { 0 };
 
+            // 日本語テキストは常にBase64エンコードを使用
+            string textToStore;
+            
+            // 下記の重要フィールドや非ASCII文字を含む場合は必ずBase64エンコード
+            bool requiresEncoding = keyword == "WorldName" || 
+                                    keyword == "Username" || 
+                                    keyword == "Friends" ||
+                                    keyword == "Description" ||
+                                    ContainsNonAscii(text);
+            
+            if (requiresEncoding)
+            {
+                // UTF-8でエンコードしてBase64変換
+                byte[] textBytes = Encoding.UTF8.GetBytes(text);
+                textToStore = "BASE64:" + Convert.ToBase64String(textBytes);
+                
+                // デバッグ出力
+                System.Diagnostics.Debug.WriteLine($"Base64エンコード: {keyword} = {text} => {textToStore}");
+            }
+            else
+            {
+                textToStore = text;
+            }
+
             // テキストデータ（Latin1エンコーディング）
-            byte[] textData = LATIN1.GetBytes(text);
+            byte[] textData = LATIN1.GetBytes(textToStore);
 
             // ヘッダーサイズ＝データ長（4バイト）+ チャンクタイプ（4バイト）
             int headerSize = sizeof(int) + chunkTypeData.Length;
@@ -175,6 +203,53 @@ namespace VSA_launcher
             Array.Copy(crcData, 0, data, headerSize + chunkDataSize, crcData.Length);
 
             return data;
+        }
+
+        // 非ASCII文字が含まれているかチェック
+        private static bool ContainsNonAscii(string text)
+        {
+            if (string.IsNullOrEmpty(text)) return false;
+            
+            foreach (char c in text)
+            {
+                // ASCII範囲外、または制御文字（改行・タブ以外）
+                if (c > 0x7F || (c < 0x20 && c != 0x09 && c != 0x0A && c != 0x0D))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        // Base64でエンコードされたデータかどうかを判断してデコードするメソッドを修正
+        private static string DecodeTextValue(string text)
+        {
+            try
+            {
+                // Base64エンコードされたデータかチェック
+                if (text != null && text.StartsWith("BASE64:"))
+                {
+                    string base64Data = text.Substring(7); // "BASE64:" を除去
+                    
+                    try
+                    {
+                        byte[] bytes = Convert.FromBase64String(base64Data);
+                        return Encoding.UTF8.GetString(bytes);
+                    }
+                    catch (Exception ex)
+                    {
+                        // デコードエラーをログ出力
+                        System.Diagnostics.Debug.WriteLine($"Base64デコードエラー: {ex.Message}");
+                        return text; // デコードに失敗した場合は元の値を返す
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"テキスト処理エラー: {ex.Message}");
+            }
+            
+            return text;
         }
         
         /// <summary>
@@ -241,6 +316,11 @@ namespace VSA_launcher
             
             try
             {
+                if (!File.Exists(filePath) || !IsPngFileByExtension(filePath))
+                {
+                    return metadata;
+                }
+                
                 // ファイルを読み込み
                 byte[] pngData = File.ReadAllBytes(filePath);
                 
@@ -250,31 +330,158 @@ namespace VSA_launcher
                     return metadata;
                 }
                 
-                // 独自実装でチャンクを解析
-                metadata = ExtractTextChunks(pngData);
-                
-                // データが見つからない場合はSystem.Drawing方式でのフォールバック
-                if (metadata.Count == 0)
-                {
-                    metadata = SimplePngMetadataManager.ReadMetadataFromPng(filePath);
-                }
+                // tEXtチャンクからメタデータを抽出
+                return ExtractTextChunks(pngData);
             }
             catch (Exception ex)
             {
                 LogError($"メタデータ読み取りエラー: {ex.Message}");
-                
-                // エラー時はSystem.Drawing方式でのフォールバック
-                try
-                {
-                    metadata = SimplePngMetadataManager.ReadMetadataFromPng(filePath);
-                }
-                catch
-                {
-                    // すべて失敗した場合は空の辞書を返す
-                }
             }
             
             return metadata;
+        }
+
+        /// <summary>
+        /// ファイル拡張子がPNGかどうかをチェック
+        /// </summary>
+        private static bool IsPngFileByExtension(string filePath)
+        {
+            return Path.GetExtension(filePath).Equals(".png", StringComparison.OrdinalIgnoreCase);
+        }
+        
+        /// <summary>
+        /// FileWatcherService との互換性のために追加
+        /// </summary>
+        public static Dictionary<string, string> ReadMetadata(string filePath)
+        {
+            return ReadMetadataFromPng(filePath);
+        }
+        
+        /// <summary>
+        /// PNGファイルが処理済みかどうかを確認
+        /// </summary>
+        public static bool IsProcessedFile(string filePath)
+        {
+            try
+            {
+                if (!File.Exists(filePath) || !IsPngFileByExtension(filePath))
+                {
+                    return false;
+                }
+                
+                var metadata = ReadMetadataFromPng(filePath);
+                return metadata.ContainsKey(PROCESSED_KEY) && metadata[PROCESSED_KEY] == "true";
+            }
+            catch
+            {
+                return false;
+            }
+        }
+        
+        /// <summary>
+        /// 既存のPNGファイルにメタデータを書き込む
+        /// </summary>
+        public static bool WriteMetadata(string filePath, Dictionary<string, string> metadata)
+        {
+            if (!File.Exists(filePath))
+            {
+                LogError($"ファイルが存在しません: {filePath}");
+                return false;
+            }
+            
+            if (!IsPngFileByExtension(filePath))
+            {
+                LogError($"PNGファイルではありません: {filePath}");
+                return false;
+            }
+            
+            var existingMetadata = ReadMetadataFromPng(filePath);
+            
+            // 既存データと新データをマージ
+            foreach (var item in metadata)
+            {
+                existingMetadata[item.Key] = item.Value;
+            }
+            
+            return AddMetadataToPng(filePath, filePath, existingMetadata);
+        }
+        
+        /// <summary>
+        /// VRChatログから取得したメタデータをPNGファイルに追加
+        /// </summary>
+        public static bool AddVRChatMetadataToPng(string sourceFilePath, string targetFilePath, 
+            VRChatLogParser? logParser = null, Dictionary<string, string>? additionalMetadata = null)
+        {
+            try
+            {
+                // ログパーサーがあればメタデータを取得
+                if (logParser != null)
+                {
+                    var metadata = new Dictionary<string, string>
+                    {
+                        { PROCESSED_KEY, "true" },
+                        { "WorldName", logParser.CurrentWorldName ?? "Unknown" },
+                        { "WorldID", logParser.CurrentWorldId ?? "Unknown" },
+                        // 撮影者情報を明示的に追加
+                        { "Username", logParser.Username ?? "Unknown User" },
+                        { "CaptureTime", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") },
+                        { "Friends", logParser.GetFriendsString() }
+                    };
+                    
+                    // 追加メタデータがあれば合併
+                    if (additionalMetadata != null && additionalMetadata.Count > 0)
+                    {
+                        foreach (var item in additionalMetadata)
+                        {
+                            metadata[item.Key] = item.Value;
+                        }
+                    }
+                    
+                    return AddMetadataToPng(sourceFilePath, targetFilePath, metadata);
+                }
+                return false;
+            }
+            catch (Exception ex)
+            {
+                LogError($"VRChatメタデータ追加エラー: {ex.Message}");
+                return false;
+            }
+        }
+        
+        /// <summary>
+        /// 既存のPNGファイルにVRChatログから取得したメタデータを書き込む
+        /// </summary>
+        public static bool WriteVRChatMetadata(string filePath, 
+            VRChatLogParser? logParser = null, Dictionary<string, string>? additionalMetadata = null)
+        {
+            return AddVRChatMetadataToPng(filePath, filePath, logParser, additionalMetadata);
+        }
+        
+        /// <summary>
+        /// メタデータをテキストファイルにエクスポート
+        /// </summary>
+        public static string ExportMetadataToTextFile(string pngFilePath, string? exportPath = null)
+        {
+            var metadata = ReadMetadataFromPng(pngFilePath);
+            if (metadata.Count == 0)
+                return null;
+                
+            if (string.IsNullOrEmpty(exportPath))
+                exportPath = Path.ChangeExtension(pngFilePath, ".metadata.txt");
+                
+            StringBuilder sb = new StringBuilder();
+            sb.AppendLine($"=== VRC Snap Archive Metadata ===");
+            sb.AppendLine($"ファイル: {Path.GetFileName(pngFilePath)}");
+            sb.AppendLine($"エクスポート日時: {DateTime.Now}");
+            sb.AppendLine();
+            
+            foreach (var item in metadata)
+            {
+                sb.AppendLine($"{item.Key}: {item.Value}");
+            }
+            
+            File.WriteAllText(exportPath, sb.ToString(), Encoding.UTF8);
+            return exportPath;
         }
         
         /// <summary>
@@ -283,9 +490,11 @@ namespace VSA_launcher
         private static Dictionary<string, string> ExtractTextChunks(byte[] pngData)
         {
             Dictionary<string, string> result = new Dictionary<string, string>();
+            int textChunksFound = 0;
             
             try
             {
+                System.Diagnostics.Debug.WriteLine("tEXtチャンク抽出開始");
                 int position = PNG_HEADER_SIZE; // シグネチャの後からスタート
                 
                 // ファイル全体をスキャン
@@ -303,9 +512,12 @@ namespace VSA_launcher
                     Array.Copy(pngData, position + 4, typeBytes, 0, 4);
                     string chunkType = Encoding.ASCII.GetString(typeBytes);
                     
+                    System.Diagnostics.Debug.WriteLine($"チャンク検出: {chunkType}, 長さ: {chunkLength}");
+                    
                     // tEXtチャンクを処理
-                    if (chunkType == "tEXt")
+                    if (chunkType == "tEXt" && position + 8 + chunkLength <= pngData.Length)
                     {
+                        textChunksFound++;
                         byte[] chunkData = new byte[chunkLength];
                         Array.Copy(pngData, position + 8, chunkData, 0, chunkLength);
                         
@@ -321,6 +533,15 @@ namespace VSA_launcher
                             Array.Copy(chunkData, nullPos + 1, textBytes, 0, textBytes.Length);
                             string text = LATIN1.GetString(textBytes);
                             
+                            // デバッグログ出力 (生データから文字列へのデコード結果確認)
+                            System.Diagnostics.Debug.WriteLine($"tEXtチャンク「{keyword}」の値(未加工): {text}");
+                            
+                            // Base64エンコードされたデータをデコード
+                            text = DecodeTextValue(text);
+                            
+                            // デコード後の値をログ出力
+                            System.Diagnostics.Debug.WriteLine($"tEXtチャンク「{keyword}」のデコード後の値: {text}");
+
                             // 特別なキー "VSA_Metadata" はJSONとして解析
                             if (keyword == "VSA_Metadata")
                             {
@@ -340,65 +561,49 @@ namespace VSA_launcher
                     // 次のチャンクへ
                     position += 12 + chunkLength; // 長さ(4) + タイプ(4) + データ(chunkLength) + CRC(4)
                 }
+                
+                System.Diagnostics.Debug.WriteLine($"tEXtチャンク抽出完了: {textChunksFound}個のtEXtチャンクを検出");
             }
             catch (Exception ex)
             {
+                System.Diagnostics.Debug.WriteLine($"tEXtチャンク抽出エラー: {ex.Message}");
                 LogError($"tEXtチャンク抽出エラー: {ex.Message}");
             }
             
             return result;
         }
 
-        // 残りのメソッドはSimplePngMetadataManagerの実装を使用
-        
-        /// <summary>
-        /// FileWatcherService との互換性のために追加
-        /// </summary>
-        public static Dictionary<string, string> ReadMetadata(string filePath)
+
+        // 有効なBase64文字列かどうかをチェック
+        private static bool IsValidBase64(string base64)
         {
-            return ReadMetadataFromPng(filePath);
-        }
-        
-        /// <summary>
-        /// PNGファイルが処理済みかどうかを確認（ファイルロック回避版）
-        /// </summary>
-        public static bool IsProcessedFile(string filePath)
-        {
-            return SimplePngMetadataManager.IsProcessedFile(filePath);
-        }
-        
-        /// <summary>
-        /// 既存のPNGファイルにメタデータを書き込む
-        /// </summary>
-        public static bool WriteMetadata(string filePath, Dictionary<string, string> metadata)
-        {
-            return SimplePngMetadataManager.WriteMetadata(filePath, metadata);
-        }
-        
-        /// <summary>
-        /// VRChatログから取得したメタデータをPNGファイルに追加
-        /// </summary>
-        public static bool AddVRChatMetadataToPng(string sourceFilePath, string targetFilePath, 
-            VRChatLogParser? logParser = null, Dictionary<string, string>? additionalMetadata = null)
-        {
-            return SimplePngMetadataManager.AddVRChatMetadataToPng(sourceFilePath, targetFilePath, logParser, additionalMetadata);
-        }
-        
-        /// <summary>
-        /// 既存のPNGファイルにVRChatログから取得したメタデータを書き込む
-        /// </summary>
-        public static bool WriteVRChatMetadata(string filePath, 
-            VRChatLogParser? logParser = null, Dictionary<string, string>? additionalMetadata = null)
-        {
-            return SimplePngMetadataManager.WriteVRChatMetadata(filePath, logParser, additionalMetadata);
-        }
-        
-        /// <summary>
-        /// メタデータをテキストファイルにエクスポート
-        /// </summary>
-        public static string ExportMetadataToTextFile(string pngFilePath, string? exportPath = null)
-        {
-            return SimplePngMetadataManager.ExportMetadataToTextFile(pngFilePath, exportPath);
+            // Base64文字列の正規表現パターンに一致するかチェック
+            if (string.IsNullOrEmpty(base64))
+                return false;
+            
+            // パディング文字を考慮
+            int padding = 0;
+            if (base64.EndsWith("==")) padding = 2;
+            else if (base64.EndsWith("=")) padding = 1;
+            
+            // Base64文字列の長さチェック (4の倍数であるべき)
+            if ((base64.Length % 4) != 0)
+                return false;
+            
+            // Base64文字のみを含むかチェック
+            for (int i = 0; i < base64.Length - padding; i++)
+            {
+                char c = base64[i];
+                if (!(c >= 'A' && c <= 'Z') && 
+                    !(c >= 'a' && c <= 'z') && 
+                    !(c >= '0' && c <= '9') && 
+                    c != '+' && c != '/')
+                {
+                    return false;
+                }
+            }
+            
+            return true;
         }
         
         /// <summary>
@@ -406,14 +611,16 @@ namespace VSA_launcher
         /// </summary>
         private static string DictionaryToJson(Dictionary<string, string> dict)
         {
+            // SimplePngMetadataManagerのメソッドを使用
             return SimplePngMetadataManager.DictionaryToJson(dict);
         }
-        
+
         /// <summary>
         /// JSON文字列をパース
         /// </summary>
         private static Dictionary<string, string> ParseJsonMetadata(string json)
         {
+            // SimplePngMetadataManagerのメソッドを使用
             return SimplePngMetadataManager.ParseJsonMetadata(json);
         }
         

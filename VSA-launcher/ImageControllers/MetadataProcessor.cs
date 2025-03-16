@@ -55,7 +55,8 @@ namespace VSA_launcher
                     { "WorldID", _logParser.CurrentWorldId ?? "Unknown" },
                     { "Username", username },  // 確実に値が入るように修正
                     { "CaptureTime", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") },
-                    { "VSA", "true" } // 処理済みフラグを追加
+                    { "VSA", "true" }, // 処理済みフラグを追加
+                    { "VSACheck", "true" } // 互換性のためのフラグ
                 };
 
                 // フレンド情報が存在する場合は追加
@@ -70,8 +71,8 @@ namespace VSA_launcher
 
                 try
                 {
-                    // 一時ファイルにメタデータを追加して出力先に保存
-                    bool success = SimplePngMetadataManager.AddMetadataToPng(tempFilePath, destinationPath, metadata);
+                    // 一時ファイルにメタデータを追加して出力先に保存 (常にPngMetadataManagerを使用)
+                    bool success = PngMetadataManager.AddMetadataToPng(tempFilePath, destinationPath, metadata);
                     
                     if (!success)
                     {
@@ -129,10 +130,10 @@ namespace VSA_launcher
                 {
                     try
                     {
-                        // ファイルからメタデータを読み取り
+                        // ファイルからメタデータを読み取り（PngMetadataManagerを使用）
                         var actualMetadata = PngMetadataManager.ReadMetadata(filePath);
                         
-                        // 必須キー（VSACheck）が存在するかチェック
+                        // 必須キー（VSACheckまたはVSA）が存在するかチェック
                         if (!actualMetadata.ContainsKey("VSA") && !actualMetadata.ContainsKey("VSACheck"))
                         {
                             Debug.WriteLine($"検証エラー: 処理マーカーが見つかりません: {Path.GetFileName(filePath)}");
@@ -245,26 +246,8 @@ namespace VSA_launcher
         {
             try
             {
-                // PngMetadataManagerの代わりに自前でチェック
-                // ファイルが開けない場合があるため、処理済みでないと仮定して続行
-                if (!File.Exists(filePath))
-                {
-                    return false;
-                }
-                
-                // ReadWrite共有モードで開けるか試す
-                try
-                {
-                    using (var fs = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
-                    {
-                        return SimplePngMetadataManager.IsProcessedFile(filePath);
-                    }
-                }
-                catch
-                {
-                    // ファイルオープンに失敗した場合は未処理と判断
-                    return false;
-                }
+                // PngMetadataManagerを使用
+                return PngMetadataManager.IsProcessedFile(filePath);
             }
             catch
             {
