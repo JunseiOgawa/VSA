@@ -414,7 +414,7 @@
             // 
             // CreateTestImage_button
             // 
-            CreateTestImage_button.Location = new Point(274, 294);
+            CreateTestImage_button.Location = new Point(292, 297);
             CreateTestImage_button.Name = "CreateTestImage_button";
             CreateTestImage_button.Size = new Size(75, 23);
             CreateTestImage_button.TabIndex = 29;
@@ -423,17 +423,17 @@
             // 
             // worldFriends_richTextBox
             // 
-            worldFriends_richTextBox.Location = new Point(194, 230);
+            worldFriends_richTextBox.Location = new Point(194, 218);
             worldFriends_richTextBox.Name = "worldFriends_richTextBox";
-            worldFriends_richTextBox.Size = new Size(173, 57);
+            worldFriends_richTextBox.Size = new Size(173, 76);
             worldFriends_richTextBox.TabIndex = 28;
             worldFriends_richTextBox.Text = "";
             // 
             // worldName_richTextBox
             // 
-            worldName_richTextBox.Location = new Point(3, 230);
+            worldName_richTextBox.Location = new Point(3, 218);
             worldName_richTextBox.Name = "worldName_richTextBox";
-            worldName_richTextBox.Size = new Size(173, 57);
+            worldName_richTextBox.Size = new Size(173, 76);
             worldName_richTextBox.TabIndex = 27;
             worldName_richTextBox.Text = "";
             // 
@@ -454,7 +454,7 @@
             // worldFriends_label
             // 
             worldFriends_label.AutoSize = true;
-            worldFriends_label.Location = new Point(194, 212);
+            worldFriends_label.Location = new Point(194, 200);
             worldFriends_label.Name = "worldFriends_label";
             worldFriends_label.Size = new Size(107, 15);
             worldFriends_label.TabIndex = 24;
@@ -482,7 +482,7 @@
             // worldName_label
             // 
             worldName_label.AutoSize = true;
-            worldName_label.Location = new Point(3, 212);
+            worldName_label.Location = new Point(3, 200);
             worldName_label.Name = "worldName_label";
             worldName_label.Size = new Size(54, 15);
             worldName_label.TabIndex = 21;
@@ -557,9 +557,10 @@
             // LICENSE_label
             // 
             LICENSE_label.AutoSize = true;
+            LICENSE_label.Font = new Font("Yu Gothic UI Semibold", 12F, FontStyle.Bold, GraphicsUnit.Point, 128);
             LICENSE_label.Location = new Point(3, 7);
             LICENSE_label.Name = "LICENSE_label";
-            LICENSE_label.Size = new Size(50, 15);
+            LICENSE_label.Size = new Size(70, 21);
             LICENSE_label.TabIndex = 0;
             LICENSE_label.Text = "LICENSE";
             // 
