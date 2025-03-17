@@ -565,7 +565,7 @@ namespace VSA_launcher
             if (openFileDialog.ShowDialog() == DialogResult.OK)
             {
                 PngMetaDate_textBox.Text = openFileDialog.FileName;
-                
+
                 // 選択した画像を表示してメタデータを解析
                 DisplayImageAndMetadata(openFileDialog.FileName);
             }
@@ -636,17 +636,17 @@ namespace VSA_launcher
             {
                 worldName_richTextBox.Text = worldName;
             }
-            
+
             if (metadata.TryGetValue("Friends", out string friends))
             {
                 worldFriends_richTextBox.Text = friends;
             }
-            
+
             if (metadata.TryGetValue("CaptureTime", out string captureTime))
             {
                 photoTime_textBox.Text = captureTime;
             }
-            
+
             if (metadata.TryGetValue("Username", out string username))
             {
                 photographName_textBox.Text = username;
@@ -700,7 +700,7 @@ namespace VSA_launcher
                     { "Friends", "フレンド1, フレンド2, フレンド3, 日本語名前" },
                     { "TestKey", "これはテストです" }
                 };
-                
+
                 // 保存先を選択
                 SaveFileDialog saveDialog = new SaveFileDialog
                 {
@@ -708,26 +708,26 @@ namespace VSA_launcher
                     Title = "テスト画像の保存先を選択",
                     FileName = "test_metadata.png"
                 };
-                
+
                 if (saveDialog.ShowDialog() != DialogResult.OK)
                     return;
-                
+
                 // テスト用の画像を作成
                 using (Bitmap bmp = new Bitmap(400, 300))
                 using (Graphics g = Graphics.FromImage(bmp))
                 {
                     g.Clear(Color.White);
-                    
+
                     // 日本語のテキストを正しく表示
                     using (Font font = new Font("Yu Gothic UI", 20))
                     {
                         g.DrawString("メタデータテスト画像", font, Brushes.Black, new PointF(50, 120));
                     }
-                    
+
                     // 一時ファイルとして保存
                     string tempPath = Path.GetTempFileName() + ".png";
                     bmp.Save(tempPath, ImageFormat.Png);
-                    
+
                     // デバッグ情報を表示
                     StringBuilder logSb = new StringBuilder();
                     logSb.AppendLine("テストデータ:");
@@ -736,18 +736,18 @@ namespace VSA_launcher
                         logSb.AppendLine($"  {entry.Key}: {entry.Value}");
                     }
                     System.Diagnostics.Debug.WriteLine(logSb.ToString());
-                    
+
                     // PngMetadataManager を使ってメタデータを追加して保存
                     bool success = PngMetadataManager.AddMetadataToPng(tempPath, saveDialog.FileName, metadata);
-                    
+
                     // 一時ファイルの削除
                     try { File.Delete(tempPath); } catch { }
-                    
+
                     if (success)
                     {
                         // メタデータの検証
                         var pngMetadata = PngMetadataManager.ReadMetadataFromPng(saveDialog.FileName);
-                        
+
                         StringBuilder sb = new StringBuilder();
                         sb.AppendLine("テスト画像作成結果:");
                         sb.AppendLine($"保存先: {saveDialog.FileName}");
@@ -757,9 +757,9 @@ namespace VSA_launcher
                         {
                             sb.AppendLine($"   {pair.Key}: {pair.Value}");
                         }
-                        
+
                         MessageBox.Show(sb.ToString(), "テスト画像作成成功", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                        
+
                         // UIに表示
                         PngMetaDate_textBox.Text = saveDialog.FileName;
                         DisplayImageAndMetadata(saveDialog.FileName);
@@ -774,6 +774,52 @@ namespace VSA_launcher
             {
                 MessageBox.Show($"テスト画像作成エラー: {ex.Message}\n{ex.StackTrace}", "エラー", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
+        }
+
+        private void LICENSEOpenFolder_button_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                // ライセンスフォルダのパスを取得
+                string licenseFolderPath = Path.Combine(
+                    AppDomain.CurrentDomain.BaseDirectory, 
+                    "LICENSE");
+                
+                // フォルダが存在するか確認
+                if (Directory.Exists(licenseFolderPath))
+                {
+                    // フォルダをエクスプローラーで開く
+                    Process.Start(new ProcessStartInfo
+                    {
+                        FileName = licenseFolderPath,
+                        UseShellExecute = true
+                    });
+                    UpdateStatusInfo("ライセンスフォルダを開きました", $"パス: {licenseFolderPath}");
+                }
+                else
+                {
+                    MessageBox.Show(
+                        "ライセンスフォルダが見つかりませんでした。\nパス: " + licenseFolderPath,
+                        "エラー",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Error);
+                    UpdateStatusInfo("エラー", "ライセンスフォルダが見つかりませんでした");
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(
+                    "ライセンスフォルダを開く際にエラーが発生しました。\n" + ex.Message,
+                    "エラー",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
+                UpdateStatusInfo("エラー", "ライセンスフォルダを開けませんでした");
+            }
+        }
+
+        private void worldFriends_label_Click(object sender, EventArgs e)
+        {
+
         }
     }
 

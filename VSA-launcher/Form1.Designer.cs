@@ -55,6 +55,7 @@
             tabControl = new TabControl();
             main = new TabPage();
             metaData = new TabPage();
+            CreateTestImage_button = new Button();
             worldFriends_richTextBox = new RichTextBox();
             worldName_richTextBox = new RichTextBox();
             photoTime_textBox = new TextBox();
@@ -68,7 +69,9 @@
             PngMetaDate_button = new Button();
             PngPreview_pictureBox = new PictureBox();
             LICENSE = new TabPage();
-            CreateTestImage_button = new Button();
+            LICENSEOpenFolder_button = new Button();
+            label2 = new Label();
+            LICENSE_label = new Label();
             contextMenuStrip1.SuspendLayout();
             statusStrip1.SuspendLayout();
             fileSubdivision_Group.SuspendLayout();
@@ -77,6 +80,7 @@
             main.SuspendLayout();
             metaData.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)PngPreview_pictureBox).BeginInit();
+            LICENSE.SuspendLayout();
             SuspendLayout();
             // 
             // notifyIcon
@@ -408,6 +412,15 @@
             metaData.Text = "メタデータ";
             metaData.UseVisualStyleBackColor = true;
             // 
+            // CreateTestImage_button
+            // 
+            CreateTestImage_button.Location = new Point(274, 294);
+            CreateTestImage_button.Name = "CreateTestImage_button";
+            CreateTestImage_button.Size = new Size(75, 23);
+            CreateTestImage_button.TabIndex = 29;
+            CreateTestImage_button.Text = "test生成";
+            CreateTestImage_button.UseVisualStyleBackColor = true;
+            // 
             // worldFriends_richTextBox
             // 
             worldFriends_richTextBox.Location = new Point(194, 230);
@@ -443,9 +456,10 @@
             worldFriends_label.AutoSize = true;
             worldFriends_label.Location = new Point(194, 212);
             worldFriends_label.Name = "worldFriends_label";
-            worldFriends_label.Size = new Size(105, 15);
+            worldFriends_label.Size = new Size(107, 15);
             worldFriends_label.TabIndex = 24;
-            worldFriends_label.Text = "一緒にいるフレンド名";
+            worldFriends_label.Text = "一緒にいるユーザー名";
+            worldFriends_label.Click += worldFriends_label_Click;
             // 
             // photoTime_label
             // 
@@ -510,6 +524,9 @@
             // 
             // LICENSE
             // 
+            LICENSE.Controls.Add(LICENSEOpenFolder_button);
+            LICENSE.Controls.Add(label2);
+            LICENSE.Controls.Add(LICENSE_label);
             LICENSE.Location = new Point(4, 24);
             LICENSE.Name = "LICENSE";
             LICENSE.Padding = new Padding(3);
@@ -518,14 +535,33 @@
             LICENSE.Text = "ライセンス";
             LICENSE.UseVisualStyleBackColor = true;
             // 
-            // CreateTestImage_button
+            // LICENSEOpenFolder_button
             // 
-            CreateTestImage_button.Location = new Point(274, 294);
-            CreateTestImage_button.Name = "CreateTestImage_button";
-            CreateTestImage_button.Size = new Size(75, 23);
-            CreateTestImage_button.TabIndex = 29;
-            CreateTestImage_button.Text = "test生成";
-            CreateTestImage_button.UseVisualStyleBackColor = true;
+            LICENSEOpenFolder_button.Location = new Point(3, 61);
+            LICENSEOpenFolder_button.Name = "LICENSEOpenFolder_button";
+            LICENSEOpenFolder_button.Size = new Size(145, 58);
+            LICENSEOpenFolder_button.TabIndex = 2;
+            LICENSEOpenFolder_button.Text = "ライセンスフォルダ(OpenFolder)";
+            LICENSEOpenFolder_button.UseVisualStyleBackColor = true;
+            LICENSEOpenFolder_button.Click += LICENSEOpenFolder_button_Click;
+            // 
+            // label2
+            // 
+            label2.AutoSize = true;
+            label2.Location = new Point(3, 43);
+            label2.Name = "label2";
+            label2.Size = new Size(145, 15);
+            label2.TabIndex = 1;
+            label2.Text = "LICENSEのフォルダに飛べます";
+            // 
+            // LICENSE_label
+            // 
+            LICENSE_label.AutoSize = true;
+            LICENSE_label.Location = new Point(3, 7);
+            LICENSE_label.Name = "LICENSE_label";
+            LICENSE_label.Size = new Size(50, 15);
+            LICENSE_label.TabIndex = 0;
+            LICENSE_label.Text = "LICENSE";
             // 
             // VSA_launcher
             // 
@@ -550,6 +586,8 @@
             metaData.ResumeLayout(false);
             metaData.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)PngPreview_pictureBox).EndInit();
+            LICENSE.ResumeLayout(false);
+            LICENSE.PerformLayout();
             ResumeLayout(false);
             PerformLayout();
         }
@@ -608,5 +646,8 @@
         private TextBox photoTime_textBox;
         private TextBox photographName_textBox;
         private Button CreateTestImage_button;
+        private Label LICENSE_label;
+        private Button LICENSEOpenFolder_button;
+        private Label label2;
     }
 }

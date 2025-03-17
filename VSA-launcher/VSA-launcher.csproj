@@ -25,4 +25,8 @@
     </None>
   </ItemGroup>
 
+  <ItemGroup>
+    <None Remove="3gksnpcb.rup~" />
+  </ItemGroup>
+
 </Project>

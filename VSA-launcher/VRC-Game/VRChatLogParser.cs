@@ -98,11 +98,13 @@ namespace VSA_launcher
                 string oldWorldId = CurrentWorldId;
                 
                 // ログ解析
-                if (ParseLatestLog() && 
-                    (oldWorldName != CurrentWorldName || oldWorldId != CurrentWorldId))
+                if (ParseLatestLog())
                 {
-                    // ワールド情報が変更された場合にイベント発火
-                    OnWorldChanged(new WorldChangedEventArgs(CurrentWorldName, CurrentWorldId));
+                    // ワールド情報が変更された場合
+                    if (oldWorldName != CurrentWorldName || oldWorldId != CurrentWorldId)
+                    {
+                        OnWorldChanged(new WorldChangedEventArgs(CurrentWorldName, CurrentWorldId));
+                    }
                 }
             }
             catch (Exception ex)
@@ -203,6 +205,10 @@ namespace VSA_launcher
                 // 最後のワールドエントリを取得
                 string fullWorldEntry = worldMatches[worldMatches.Count - 1].Groups[1].Value.Trim();
                 
+                // 前のワールド情報を保存
+                string oldWorldName = CurrentWorldName;
+                string oldWorldId = CurrentWorldId;
+                
                 // ワールドIDの抽出
                 var worldIdMatch = _worldIdPattern.Match(fullWorldEntry);
                 if (worldIdMatch.Success)
@@ -232,6 +238,13 @@ namespace VSA_launcher
                     // IDが見つからない場合は、エントリ全体をワールド名とする
                     CurrentWorldName = fullWorldEntry.Trim();
                     CurrentWorldId = "";
+                }
+                
+                // ワールドが変更されていたらフレンドリストをクリア
+                if (oldWorldName != CurrentWorldName || oldWorldId != CurrentWorldId)
+                {
+                    CurrentFriends.Clear();
+                    Console.WriteLine($"[DEBUG] ワールド変更を検出: {oldWorldName} → {CurrentWorldName}, フレンドリストをクリア");
                 }
             }
         }
