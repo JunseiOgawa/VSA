@@ -29,4 +29,8 @@
     <None Remove="3gksnpcb.rup~" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Content Include="ms-icon-150x150.ico" />
+  </ItemGroup>
+
 </Project>

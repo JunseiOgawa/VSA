@@ -21,13 +21,11 @@
         private void InitializeComponent()
         {
             components = new System.ComponentModel.Container();
+            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(VSA_launcher));
             notifyIcon = new NotifyIcon(components);
             contextMenuStrip1 = new ContextMenuStrip(components);
-            snapArchiveLauncherを開くToolStripMenuItem = new ToolStripMenuItem();
-            toolStripTextBox1 = new ToolStripTextBox();
-            メインアプリケーションを起動ToolStripMenuItem = new ToolStripMenuItem();
-            toolStripSeparator1 = new ToolStripSeparator();
             設定ToolStripMenuItem = new ToolStripMenuItem();
+            メインアプリケーションを起動ToolStripMenuItem = new ToolStripMenuItem();
             toolStripSeparator2 = new ToolStripSeparator();
             終了ToolStripMenuItem = new ToolStripMenuItem();
             statusStrip1 = new StatusStrip();
@@ -55,7 +53,6 @@
             tabControl = new TabControl();
             main = new TabPage();
             metaData = new TabPage();
-            CreateTestImage_button = new Button();
             worldFriends_richTextBox = new RichTextBox();
             worldName_richTextBox = new RichTextBox();
             photoTime_textBox = new TextBox();
@@ -85,54 +82,37 @@
             // 
             // notifyIcon
             // 
-            notifyIcon.Text = "notifyIcon1";
+            notifyIcon.Icon = (Icon)resources.GetObject("notifyIcon.Icon");
+            notifyIcon.Text = "notifyIcon";
             notifyIcon.Visible = true;
             // 
             // contextMenuStrip1
             // 
-            contextMenuStrip1.Items.AddRange(new ToolStripItem[] { snapArchiveLauncherを開くToolStripMenuItem, toolStripTextBox1, メインアプリケーションを起動ToolStripMenuItem, toolStripSeparator1, 設定ToolStripMenuItem, toolStripSeparator2, 終了ToolStripMenuItem });
+            contextMenuStrip1.Items.AddRange(new ToolStripItem[] { 設定ToolStripMenuItem, メインアプリケーションを起動ToolStripMenuItem, toolStripSeparator2, 終了ToolStripMenuItem });
             contextMenuStrip1.Name = "contextMenuStrip1";
-            contextMenuStrip1.Size = new Size(224, 129);
-            // 
-            // snapArchiveLauncherを開くToolStripMenuItem
-            // 
-            snapArchiveLauncherを開くToolStripMenuItem.Name = "snapArchiveLauncherを開くToolStripMenuItem";
-            snapArchiveLauncherを開くToolStripMenuItem.Size = new Size(223, 22);
-            snapArchiveLauncherを開くToolStripMenuItem.Text = "SnapArchive Launcher を開く";
-            // 
-            // toolStripTextBox1
-            // 
-            toolStripTextBox1.Name = "toolStripTextBox1";
-            toolStripTextBox1.Size = new Size(100, 23);
-            toolStripTextBox1.Text = "監視状態:";
-            toolStripTextBox1.Click += toolStripTextBox1_Click;
-            // 
-            // メインアプリケーションを起動ToolStripMenuItem
-            // 
-            メインアプリケーションを起動ToolStripMenuItem.Name = "メインアプリケーションを起動ToolStripMenuItem";
-            メインアプリケーションを起動ToolStripMenuItem.Size = new Size(223, 22);
-            メインアプリケーションを起動ToolStripMenuItem.Text = "メインアプリケーションを起動";
-            // 
-            // toolStripSeparator1
-            // 
-            toolStripSeparator1.Name = "toolStripSeparator1";
-            toolStripSeparator1.Size = new Size(220, 6);
+            contextMenuStrip1.Size = new Size(203, 98);
             // 
             // 設定ToolStripMenuItem
             // 
             設定ToolStripMenuItem.Name = "設定ToolStripMenuItem";
-            設定ToolStripMenuItem.Size = new Size(223, 22);
+            設定ToolStripMenuItem.Size = new Size(202, 22);
             設定ToolStripMenuItem.Text = "設定";
+            // 
+            // メインアプリケーションを起動ToolStripMenuItem
+            // 
+            メインアプリケーションを起動ToolStripMenuItem.Name = "メインアプリケーションを起動ToolStripMenuItem";
+            メインアプリケーションを起動ToolStripMenuItem.Size = new Size(202, 22);
+            メインアプリケーションを起動ToolStripMenuItem.Text = "メインアプリケーションを起動";
             // 
             // toolStripSeparator2
             // 
             toolStripSeparator2.Name = "toolStripSeparator2";
-            toolStripSeparator2.Size = new Size(220, 6);
+            toolStripSeparator2.Size = new Size(199, 6);
             // 
             // 終了ToolStripMenuItem
             // 
             終了ToolStripMenuItem.Name = "終了ToolStripMenuItem";
-            終了ToolStripMenuItem.Size = new Size(223, 22);
+            終了ToolStripMenuItem.Size = new Size(202, 22);
             終了ToolStripMenuItem.Text = "終了";
             // 
             // statusStrip1
@@ -392,7 +372,6 @@
             // 
             // metaData
             // 
-            metaData.Controls.Add(CreateTestImage_button);
             metaData.Controls.Add(worldFriends_richTextBox);
             metaData.Controls.Add(worldName_richTextBox);
             metaData.Controls.Add(photoTime_textBox);
@@ -411,15 +390,6 @@
             metaData.TabIndex = 2;
             metaData.Text = "メタデータ";
             metaData.UseVisualStyleBackColor = true;
-            // 
-            // CreateTestImage_button
-            // 
-            CreateTestImage_button.Location = new Point(292, 297);
-            CreateTestImage_button.Name = "CreateTestImage_button";
-            CreateTestImage_button.Size = new Size(75, 23);
-            CreateTestImage_button.TabIndex = 29;
-            CreateTestImage_button.Text = "test生成";
-            CreateTestImage_button.UseVisualStyleBackColor = true;
             // 
             // worldFriends_richTextBox
             // 
@@ -571,11 +541,11 @@
             ClientSize = new Size(394, 369);
             Controls.Add(statusStrip1);
             Controls.Add(tabControl);
+            Icon = (Icon)resources.GetObject("$this.Icon");
             Name = "VSA_launcher";
             Text = "エーテル製　vrcSnapArchive-launcher";
             Load += Form1_Load;
             contextMenuStrip1.ResumeLayout(false);
-            contextMenuStrip1.PerformLayout();
             statusStrip1.ResumeLayout(false);
             statusStrip1.PerformLayout();
             fileSubdivision_Group.ResumeLayout(false);
@@ -597,10 +567,7 @@
 
         private NotifyIcon notifyIcon;
         private ContextMenuStrip contextMenuStrip1;
-        private ToolStripMenuItem snapArchiveLauncherを開くToolStripMenuItem;
         private ToolStripMenuItem メインアプリケーションを起動ToolStripMenuItem;
-        private ToolStripTextBox toolStripTextBox1;
-        private ToolStripSeparator toolStripSeparator1;
         private ToolStripMenuItem 設定ToolStripMenuItem;
         private ToolStripSeparator toolStripSeparator2;
         private ToolStripMenuItem 終了ToolStripMenuItem;
@@ -646,7 +613,6 @@
         private RichTextBox worldName_richTextBox;
         private TextBox photoTime_textBox;
         private TextBox photographName_textBox;
-        private Button CreateTestImage_button;
         private Label LICENSE_label;
         private Button LICENSEOpenFolder_button;
         private Label label2;
