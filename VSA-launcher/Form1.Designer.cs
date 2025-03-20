@@ -66,6 +66,8 @@
             PngMetaDate_button = new Button();
             PngPreview_pictureBox = new PictureBox();
             LICENSE = new TabPage();
+            label3 = new Label();
+            startup_checkBox = new CheckBox();
             LICENSEOpenFolder_button = new Button();
             label2 = new Label();
             LICENSE_label = new Label();
@@ -90,7 +92,7 @@
             // 
             contextMenuStrip1.Items.AddRange(new ToolStripItem[] { 設定ToolStripMenuItem, メインアプリケーションを起動ToolStripMenuItem, toolStripSeparator2, 終了ToolStripMenuItem });
             contextMenuStrip1.Name = "contextMenuStrip1";
-            contextMenuStrip1.Size = new Size(203, 98);
+            contextMenuStrip1.Size = new Size(203, 76);
             // 
             // 設定ToolStripMenuItem
             // 
@@ -494,6 +496,8 @@
             // 
             // LICENSE
             // 
+            LICENSE.Controls.Add(label3);
+            LICENSE.Controls.Add(startup_checkBox);
             LICENSE.Controls.Add(LICENSEOpenFolder_button);
             LICENSE.Controls.Add(label2);
             LICENSE.Controls.Add(LICENSE_label);
@@ -504,6 +508,26 @@
             LICENSE.TabIndex = 1;
             LICENSE.Text = "ライセンス";
             LICENSE.UseVisualStyleBackColor = true;
+            // 
+            // label3
+            // 
+            label3.AutoSize = true;
+            label3.Font = new Font("Yu Gothic UI Semibold", 12F, FontStyle.Bold, GraphicsUnit.Point, 128);
+            label3.Location = new Point(3, 151);
+            label3.Name = "label3";
+            label3.Size = new Size(93, 21);
+            label3.TabIndex = 4;
+            label3.Text = "スタートアップ";
+            // 
+            // startup_checkBox
+            // 
+            startup_checkBox.AutoSize = true;
+            startup_checkBox.Location = new Point(3, 175);
+            startup_checkBox.Name = "startup_checkBox";
+            startup_checkBox.Size = new Size(153, 19);
+            startup_checkBox.TabIndex = 3;
+            startup_checkBox.Text = "スタートアップアプリに入れる";
+            startup_checkBox.UseVisualStyleBackColor = true;
             // 
             // LICENSEOpenFolder_button
             // 
@@ -616,5 +640,7 @@
         private Label LICENSE_label;
         private Button LICENSEOpenFolder_button;
         private Label label2;
+        private CheckBox startup_checkBox;
+        private Label label3;
     }
 }

@@ -22,6 +22,9 @@ namespace VSA_launcher
         private FileNameGenerator _fileNameGenerator = null!;
         private string _currentMetadataImagePath = string.Empty;
 
+        // 設定ファイルから読み込んだスタートアップ設定
+        private bool _startWithWindows = false;
+
         public VSA_launcher()
         {
             try
@@ -75,6 +78,13 @@ namespace VSA_launcher
                 _folderManager = new FolderStructureManager(_settings);
                 _fileNameGenerator = new FileNameGenerator(_settings);
                 _imageProcessor = new ImageProcessor(_settings, _logParser, _fileWatcher, UpdateStatusInfo);
+
+                // スタートアップ設定を適用
+                _startWithWindows = _settings.LauncherSettings.StartWithWindows;
+                startup_checkBox.Checked = _startWithWindows;
+
+                // スタートアップの実際の状態を反映
+                
             }
             catch (Exception ex)
             {
@@ -183,6 +193,9 @@ namespace VSA_launcher
         {
             // 設定を読み込み、UIに反映
             ApplySettingsToUI();
+
+            // スタートアップ設定の初期化
+            InitializeStartupSetting();
 
             // 初期状態のステータス表示
             UpdateStatusInfo("アプリケーション初期化完了", "監視準備中...");
@@ -817,6 +830,97 @@ namespace VSA_launcher
         private void worldFriends_label_Click(object sender, EventArgs e)
         {
 
+        }
+
+        /// <summary>
+        /// スタートアップチェックボックスの変更イベントハンドラ
+        /// </summary>
+        private void startUp_checkBox_CheckedChanged(object sender, EventArgs e)
+        {
+            try
+            {
+                bool isChecked = startup_checkBox.Checked;
+                bool success;
+
+                if (isChecked)
+                {
+                    // スタートアップに登録
+                    success = StartupManager.RegisterInStartup();
+                    if (success)
+                    {
+                        _startWithWindows = true;
+                        UpdateStatusInfo("設定", "Windowsスタートアップに登録しました");
+                    }
+                    else
+                    {
+                        startup_checkBox.Checked = false;
+                        _startWithWindows = false;
+                        UpdateStatusInfo("エラー", "スタートアップ登録に失敗しました");
+                        MessageBox.Show(
+                            "Windowsスタートアップへの登録に失敗しました。\n管理者権限で実行するか、別の方法をお試しください。",
+                            "スタートアップ登録エラー",
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Warning);
+                    }
+                }
+                else
+                {
+                    // スタートアップから解除
+                    success = StartupManager.RemoveFromStartup();
+                    if (success)
+                    {
+                        _startWithWindows = false;
+                        UpdateStatusInfo("設定", "Windowsスタートアップから解除しました");
+                    }
+                    else
+                    {
+                        startup_checkBox.Checked = true;
+                        _startWithWindows = true;
+                        UpdateStatusInfo("エラー", "スタートアップ解除に失敗しました");
+                        MessageBox.Show(
+                            "Windowsスタートアップからの解除に失敗しました。\n管理者権限で実行するか、別の方法をお試しください。",
+                            "スタートアップ解除エラー",
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Warning);
+                    }
+                }
+
+                // 設定を保存
+                if (_settings != null)
+                {
+                    _settings.LauncherSettings.StartWithWindows = _startWithWindows;
+                    SettingsManager.SaveSettings(_settings);
+                }
+            }
+            catch (Exception ex)
+            {
+                UpdateStatusInfo("エラー", "スタートアップ設定エラー");
+                MessageBox.Show(
+                    $"スタートアップ設定中にエラーが発生しました。\n{ex.Message}",
+                    "エラー",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
+            }
+        }
+
+        /// <summary>
+        /// フォーム初期化時にスタートアップ状態を確認して反映
+        /// </summary>
+        private void InitializeStartupSetting()
+        {
+            // 現在のスタートアップ状態を確認
+            _startWithWindows = StartupManager.IsRegisteredInStartup();
+            
+            // チェックボックスに反映（イベント発火させないようにする）
+            startup_checkBox.CheckedChanged -= startUp_checkBox_CheckedChanged;
+            startup_checkBox.Checked = _startWithWindows;
+            startup_checkBox.CheckedChanged += startUp_checkBox_CheckedChanged;
+            
+            // 設定オブジェクトに反映
+            if (_settings != null)
+            {
+                _settings.LauncherSettings.StartWithWindows = _startWithWindows;
+            }
         }
     }
 
