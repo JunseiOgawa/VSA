@@ -1,227 +1,30 @@
-using System.Drawing.Imaging;
 using System.Text;
 using System.Text.Json;
 
 namespace VSA_launcher
 {
     /// <summary>
-    /// Hjg.Pngcsを使用せずにSystem.Drawingだけでシンプルにメタデータを管理するクラス
+    /// 下位互換性のために残しているクラス - 内部でPngMetadataManagerに処理を委譲
     /// </summary>
     public static class SimplePngMetadataManager
     {
         // 処理済みマーカーキー
         private const string PROCESSED_KEY = "VSACheck";
         
-        // メタデータ格納用のExifタグID
-        private const int PropertyTagExifUserComment = 0x9286; // Exifコメントタグ
-        private const int PropertyTagImageDescription = 0x010E; // 画像説明
-        
         /// <summary>
-        /// PNGファイルにメタデータを追加
+        /// PNGファイルにメタデータを追加 - PngMetadataManagerに委譲
         /// </summary>
         public static bool AddMetadataToPng(string sourceFilePath, string targetFilePath, Dictionary<string, string> metadata)
         {
-            // 一時ファイルパスを生成（ソースファイルと同じディレクトリに作成）
-            string tempFilePath = Path.Combine(
-                Path.GetDirectoryName(sourceFilePath) ?? string.Empty, 
-                $"vsa_tmp_{Guid.NewGuid()}.png");
-            
-            try
-            {
-                // ファイルチェック
-                if (!File.Exists(sourceFilePath))
-                {
-                    LogError($"元ファイルが見つかりません: {sourceFilePath}");
-                    return false;
-                }
-                
-                if (metadata == null || metadata.Count == 0)
-                {
-                    LogError("追加するメタデータがありません");
-                    return false;
-                }
-                
-                // 処理済みマーカーを追加
-                if (!metadata.ContainsKey(PROCESSED_KEY))
-                {
-                    metadata.Add(PROCESSED_KEY, "true");
-                }
-                
-                // 画像を読み込み
-                using (Image image = Image.FromFile(sourceFilePath))
-                {
-                    // メタデータを埋め込む
-                    AddMetadataToImage(image, metadata);
-                    
-                    // 一時ファイルとして保存
-                    image.Save(tempFilePath, ImageFormat.Png);
-                }
-                
-                // 一時ファイルを出力先にコピー
-                try
-                {
-                    // 出力先ディレクトリの確認
-                    string dir = Path.GetDirectoryName(targetFilePath) ?? string.Empty;
-                    if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
-                    {
-                        Directory.CreateDirectory(dir);
-                    }
-                    
-                    // ファイルをコピー（同一ファイルの場合は置き換え）
-                    if (File.Exists(targetFilePath))
-                    {
-                        File.Delete(targetFilePath);
-                    }
-                    File.Copy(tempFilePath, targetFilePath);
-                    
-                    // 一時ファイル削除
-                    try { File.Delete(tempFilePath); } catch { }
-                    
-                    return true;
-                }
-                catch (Exception ex)
-                {
-                    LogError($"出力先へのコピーエラー: {ex.Message}");
-                    return false;
-                }
-            }
-            catch (Exception ex)
-            {
-                LogError($"PNGメタデータ追加エラー: {ex.Message}");
-                
-                // 一時ファイルのクリーンアップ
-                try
-                {
-                    if (File.Exists(tempFilePath))
-                    {
-                        File.Delete(tempFilePath);
-                    }
-                }
-                catch { }
-                
-                return false;
-            }
+            return PngMetadataManager.AddMetadataToPng(sourceFilePath, targetFilePath, metadata);
         }
         
         /// <summary>
-        /// 画像にメタデータを追加
-        /// </summary>
-        private static void AddMetadataToImage(Image image, Dictionary<string, string> metadata)
-        {
-            try
-            {
-                // 1. 全メタデータをJSON形式で保存
-                string jsonData = DictionaryToJson(metadata);
-                SetPropertyItem(image, PropertyTagExifUserComment, jsonData);
-                
-                // 2. Windowsフォトビューアで表示用のメタデータを設定
-                // メタデータのサマリーを画像説明として設定
-                StringBuilder descBuilder = new StringBuilder();
-                descBuilder.AppendLine("VRChat Snap Archive Info:");
-                
-                if (metadata.ContainsKey("WorldName"))
-                    descBuilder.AppendLine($"World: {metadata["WorldName"]}");
-                if (metadata.ContainsKey("WorldID"))
-                    descBuilder.AppendLine($"ID: {metadata["WorldID"]}");
-                if (metadata.ContainsKey("Username"))
-                    descBuilder.AppendLine($"User: {metadata["Username"]}");
-                if (metadata.ContainsKey("CaptureTime"))
-                    descBuilder.AppendLine($"Time: {metadata["CaptureTime"]}");
-                if (metadata.ContainsKey("Friends") && !string.IsNullOrEmpty(metadata["Friends"]))
-                    descBuilder.AppendLine($"Friends: {metadata["Friends"]}");
-                
-                SetPropertyItem(image, PropertyTagImageDescription, descBuilder.ToString());
-            }
-            catch (Exception ex)
-            {
-                LogError($"メタデータ追加エラー: {ex.Message}");
-            }
-        }
-        
-        /// <summary>
-        /// PropertyItemを設定するヘルパーメソッド
-        /// </summary>
-        private static void SetPropertyItem(Image image, int id, string value)
-        {
-            try
-            {
-                // UTF-8形式でバイト配列に変換（日本語対応）
-                byte[] textBytes = Encoding.UTF8.GetBytes(value + "\0"); // null終端
-                
-                // PropertyItemを作成
-                PropertyItem propItem = CreatePropertyItem();
-                propItem.Id = id;
-                propItem.Type = 2; // ASCII文字列型
-                propItem.Value = textBytes;
-                propItem.Len = textBytes.Length;
-                
-                // 既存のプロパティを削除（存在する場合）
-                try { image.RemovePropertyItem(id); } catch { }
-                
-                // 新しいプロパティを追加
-                image.SetPropertyItem(propItem);
-            }
-            catch (Exception ex)
-            {
-                LogError($"プロパティ設定エラー: {ex.Message}");
-            }
-        }
-        
-        /// <summary>
-        /// PropertyItemインスタンスを作成
-        /// </summary>
-        private static PropertyItem CreatePropertyItem()
-        {
-            try
-            {
-                // .NET Frameworkでの方法
-                return (PropertyItem)Activator.CreateInstance(typeof(PropertyItem));
-            }
-            catch
-            {
-                // .NET Core/.NET以降での方法
-                using (var tempBitmap = new Bitmap(1, 1))
-                {
-                    var propItem = tempBitmap.PropertyItems[0];
-                    return propItem;
-                }
-            }
-        }
-        
-        /// <summary>
-        /// PNGファイルからメタデータを読み取り
+        /// PNGファイルからメタデータを読み取り - PngMetadataManagerに委譲
         /// </summary>
         public static Dictionary<string, string> ReadMetadataFromPng(string filePath)
         {
-            Dictionary<string, string> metadata = new Dictionary<string, string>();
-            
-            try
-            {
-                if (!File.Exists(filePath) || !Path.GetExtension(filePath).Equals(".png", StringComparison.OrdinalIgnoreCase))
-                {
-                    return metadata;
-                }
-                
-                // 共有読み取りモードで開く
-                using (FileStream fs = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
-                using (Image image = Image.FromStream(fs, false, false))
-                {
-                    foreach (PropertyItem item in image.PropertyItems)
-                    {
-                        if (item.Id == PropertyTagExifUserComment)
-                        {
-                            string json = Encoding.UTF8.GetString(item.Value).TrimEnd('\0');
-                            return ParseJsonMetadata(json);
-                        }
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                LogError($"ファイル読み取りエラー: {ex.Message}");
-            }
-            
-            return metadata;
+            return PngMetadataManager.ReadMetadataFromPng(filePath);
         }
         
         /// <summary>
@@ -229,7 +32,7 @@ namespace VSA_launcher
         /// </summary>
         public static Dictionary<string, string> ReadMetadata(string filePath)
         {
-            return ReadMetadataFromPng(filePath);
+            return PngMetadataManager.ReadMetadata(filePath);
         }
         
         /// <summary>
@@ -237,36 +40,7 @@ namespace VSA_launcher
         /// </summary>
         public static bool IsProcessedFile(string filePath)
         {
-            if (!File.Exists(filePath))
-            {
-                return false;
-            }
-            
-            try
-            {
-                // 共有モードで開く
-                using (var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
-                using (var image = Image.FromStream(stream, false, false))
-                {
-                    // Exifコメントからメタデータを取得
-                    foreach (PropertyItem item in image.PropertyItems)
-                    {
-                        if (item.Id == PropertyTagExifUserComment)
-                        {
-                            string json = Encoding.UTF8.GetString(item.Value).TrimEnd('\0');
-                            var metadata = ParseJsonMetadata(json);
-                            return metadata.ContainsKey(PROCESSED_KEY) && metadata[PROCESSED_KEY] == "true";
-                        }
-                    }
-                }
-            }
-            catch
-            {
-                // ファイルが開けない場合は処理済みでない
-                return false;
-            }
-            
-            return false;
+            return PngMetadataManager.IsProcessedFile(filePath);
         }
         
         /// <summary>
@@ -274,27 +48,7 @@ namespace VSA_launcher
         /// </summary>
         public static bool WriteMetadata(string filePath, Dictionary<string, string> metadata)
         {
-            if (!File.Exists(filePath))
-            {
-                LogError($"ファイルが存在しません: {filePath}");
-                return false;
-            }
-            
-            if (!Path.GetExtension(filePath).Equals(".png", StringComparison.OrdinalIgnoreCase))
-            {
-                LogError($"PNGファイルではありません: {filePath}");
-                return false;
-            }
-            
-            var existingMetadata = ReadMetadataFromPng(filePath);
-            
-            // 既存データと新データをマージ
-            foreach (var item in metadata)
-            {
-                existingMetadata[item.Key] = item.Value;
-            }
-            
-            return AddMetadataToPng(filePath, filePath, existingMetadata);
+            return PngMetadataManager.WriteMetadata(filePath, metadata);
         }
         
         /// <summary>
@@ -303,49 +57,7 @@ namespace VSA_launcher
         public static bool AddVRChatMetadataToPng(string sourceFilePath, string targetFilePath, 
             VRChatLogParser? logParser = null, Dictionary<string, string>? additionalMetadata = null)
         {
-            try
-            {
-                bool createdNewParser = false;
-                if (logParser == null)
-                {
-                    logParser = new VRChatLogParser(false);
-                    createdNewParser = true;
-                    logParser.ParseLatestLog();
-                }
-                
-                // VRChatLogParserからのメタデータを取得
-                var metadata = new Dictionary<string, string>
-                {
-                    { "VSACheck", "true" },
-                    { "WorldName", logParser.CurrentWorldName ?? "Unknown" },
-                    { "WorldID", logParser.CurrentWorldId ?? "Unknown" },
-                    { "CaptureTime", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") },
-                    { "Friends", logParser.GetFriendsString() }
-                };
-                
-                // 追加メタデータがあれば合併
-                if (additionalMetadata != null && additionalMetadata.Count > 0)
-                {
-                    foreach (var item in additionalMetadata)
-                    {
-                        metadata[item.Key] = item.Value;
-                    }
-                }
-                
-                bool result = AddMetadataToPng(sourceFilePath, targetFilePath, metadata);
-                
-                if (createdNewParser && logParser is IDisposable disposable)
-                {
-                    disposable.Dispose();
-                }
-                
-                return result;
-            }
-            catch (Exception ex)
-            {
-                LogError($"VRChatメタデータ追加エラー: {ex.Message}");
-                return false;
-            }
+            return PngMetadataManager.AddVRChatMetadataToPng(sourceFilePath, targetFilePath, logParser, additionalMetadata);
         }
         
         /// <summary>
@@ -354,7 +66,7 @@ namespace VSA_launcher
         public static bool WriteVRChatMetadata(string filePath, 
             VRChatLogParser? logParser = null, Dictionary<string, string>? additionalMetadata = null)
         {
-            return AddVRChatMetadataToPng(filePath, filePath, logParser, additionalMetadata);
+            return PngMetadataManager.WriteVRChatMetadata(filePath, logParser, additionalMetadata);
         }
         
         /// <summary>
@@ -362,30 +74,11 @@ namespace VSA_launcher
         /// </summary>
         public static string ExportMetadataToTextFile(string pngFilePath, string? exportPath = null)
         {
-            var metadata = ReadMetadataFromPng(pngFilePath);
-            if (metadata.Count == 0)
-                return null;
-                
-            if (string.IsNullOrEmpty(exportPath))
-                exportPath = Path.ChangeExtension(pngFilePath, ".metadata.txt");
-                
-            StringBuilder sb = new StringBuilder();
-            sb.AppendLine($"=== VRC Snap Archive Metadata ===");
-            sb.AppendLine($"ファイル: {Path.GetFileName(pngFilePath)}");
-            sb.AppendLine($"エクスポート日時: {DateTime.Now}");
-            sb.AppendLine();
-            
-            foreach (var item in metadata)
-            {
-                sb.AppendLine($"{item.Key}: {item.Value}");
-            }
-            
-            File.WriteAllText(exportPath, sb.ToString(), Encoding.UTF8);
-            return exportPath;
+            return PngMetadataManager.ExportMetadataToTextFile(pngFilePath, exportPath);
         }
         
         /// <summary>
-        /// 辞書をJSON形式の文字列に変換（内部メソッドを公開）
+        /// 辞書をJSON形式の文字列に変換
         /// </summary>
         public static string DictionaryToJson(Dictionary<string, string> dict)
         {
@@ -417,7 +110,7 @@ namespace VSA_launcher
         }
         
         /// <summary>
-        /// JSON文字列をパース（内部メソッドを公開）
+        /// JSON文字列をパース
         /// </summary>
         public static Dictionary<string, string> ParseJsonMetadata(string json)
         {
@@ -621,12 +314,7 @@ namespace VSA_launcher
         private static void LogError(string message)
         {
             Console.WriteLine($"[ERROR] {DateTime.Now:yyyy-MM-dd HH:mm:ss} - {message}");
-            
-            try
-            {
-                System.Diagnostics.Debug.WriteLine($"SimplePngMetadataManager: {message}");
-            }
-            catch { }
+            System.Diagnostics.Debug.WriteLine($"SimplePngMetadataManager: {message}");
         }
     }
 }

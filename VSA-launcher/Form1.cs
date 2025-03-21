@@ -1,5 +1,7 @@
 using System.Diagnostics; // Process関連の操作のため
+using System.Text;
 using System.Text.RegularExpressions;
+using System.Drawing.Imaging;
 
 namespace VSA_launcher
 {
@@ -18,6 +20,10 @@ namespace VSA_launcher
         private ImageProcessor _imageProcessor = null!;
         private FolderStructureManager _folderManager = null!;
         private FileNameGenerator _fileNameGenerator = null!;
+        private string _currentMetadataImagePath = string.Empty;
+
+        // 設定ファイルから読み込んだスタートアップ設定
+        private bool _startWithWindows = false;
 
         public VSA_launcher()
         {
@@ -25,7 +31,7 @@ namespace VSA_launcher
             {
                 InitializeComponent();
                 _settings = SettingsManager.LoadSettings();
-                _systemTrayIcon = new SystemTrayIcon(this);
+                _systemTrayIcon = new SystemTrayIcon(this, notifyIcon, contextMenuStrip1);
 
                 // ファイル監視サービスの初期化 - 設定を渡す
                 _fileWatcher = new FileWatcherService();
@@ -45,6 +51,8 @@ namespace VSA_launcher
                 weekRadio_Button.CheckedChanged += radioButton_CheckedChanged;
                 dayRadio_Button.CheckedChanged += radioButton_CheckedChanged;
                 fileSubdivision_checkBox.CheckedChanged += checkBox3_CheckedChanged;
+                // PictureBoxクリックイベントの登録
+                PngPreview_pictureBox.Click += PngPreview_pictureBox_Click;
 
                 // ファイル名フォーマットのコンボボックス変更イベント追加
                 if (fileRename_comboBox != null)
@@ -70,6 +78,13 @@ namespace VSA_launcher
                 _folderManager = new FolderStructureManager(_settings);
                 _fileNameGenerator = new FileNameGenerator(_settings);
                 _imageProcessor = new ImageProcessor(_settings, _logParser, _fileWatcher, UpdateStatusInfo);
+
+                // スタートアップ設定を適用
+                _startWithWindows = _settings.LauncherSettings.StartWithWindows;
+                startup_checkBox.Checked = _startWithWindows;
+
+                // スタートアップの実際の状態を反映
+                
             }
             catch (Exception ex)
             {
@@ -169,7 +184,7 @@ namespace VSA_launcher
 
             // フォーマットに基づくプレビューを生成
             string previewName = _fileNameGenerator.GeneratePreviewFileName(_settings.FileRenaming.Format);
-            
+
             // ラベルに表示
             fileRename_label.Text = $"例: {previewName}";
         }
@@ -178,6 +193,9 @@ namespace VSA_launcher
         {
             // 設定を読み込み、UIに反映
             ApplySettingsToUI();
+
+            // スタートアップ設定の初期化
+            InitializeStartupSetting();
 
             // 初期状態のステータス表示
             UpdateStatusInfo("アプリケーション初期化完了", "監視準備中...");
@@ -312,159 +330,15 @@ namespace VSA_launcher
         // メインアプリ起動
         // publicに変更してSystemTrayIconからアクセスできるようにする
         public void LaunchMainApplication()
-        {   
-            // 起動前にアプリが既に実行中かチェック
-            if (IsMainAppRunning())
-            {
-                MessageBox.Show("メインアプリケーションは既に実行中です。", 
-                                "情報", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                return;
-            }
-            
-            try
-            {
-                string currentDirectory = AppDomain.CurrentDomain.BaseDirectory;
-                string solutionRoot = Path.GetFullPath(Path.Combine(currentDirectory, @"..\..\..")); 
-                
-                // デバッグモードかどうかを確認
-                bool isDebugMode = false;
-                #if DEBUG
-                    isDebugMode = true;
-                #endif
-                
-                // frontendディレクトリのパス - プロジェクトと同階層の"frontend"ディレクトリを指定
-                string frontendPath = Path.Combine(
-                    Path.GetDirectoryName(Path.GetDirectoryName(solutionRoot)), // ソリューションの2階層上に移動
-                    "frontend"
-                );
-                
-                // frontendディレクトリが存在しない場合は、カレントディレクトリの隣の"frontend"も試す
-                if (!Directory.Exists(frontendPath))
-                {
-                    frontendPath = Path.Combine(
-                        Path.GetDirectoryName(solutionRoot), // ソリューションの1階層上に移動
-                        "frontend"
-                    );
-                }
-                
-                // それでも見つからない場合は、一般的な場所を試す
-                if (!Directory.Exists(frontendPath))
-                {
-                    frontendPath = Path.Combine(Directory.GetCurrentDirectory(), "frontend");
-                }
-                
-                // 最終確認 - フロントエンドディレクトリが存在するか確認
-                if (!Directory.Exists(frontendPath))
-                {
-                    MessageBox.Show($"フロントエンドディレクトリが見つかりません。\n以下のパスを確認してください:\n{frontendPath}", 
-                        "エラー", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                    return;
-                }
-                
-                // デバッグ情報表示
-                Debug.WriteLine($"現在のディレクトリ: {currentDirectory}");
-                Debug.WriteLine($"ソリューションルート: {solutionRoot}");
-                Debug.WriteLine($"フロントエンドパス: {frontendPath}");
-                
-                ProcessStartInfo startInfo = new ProcessStartInfo();
-                
-                if (isDebugMode)
-                {
-                    // 開発環境: npmコマンドを実行
-                    startInfo.FileName = "cmd.exe";
-                    startInfo.Arguments = $"/c cd /d \"{frontendPath}\" && echo フロントエンド起動中... && npm run start";
-                    startInfo.UseShellExecute = false; // シェルを使わない
-                    startInfo.CreateNoWindow = true;   // コンソールウィンドウを表示しない
-                    startInfo.RedirectStandardOutput = true; // 出力をリダイレクト
-                    
-                    // Electronコマンドが失敗した場合のフォールバック
-                    if (!File.Exists(Path.Combine(frontendPath, "node_modules", "electron", "dist", "electron.exe")))
-                    {
-                        startInfo.Arguments = $"/c cd /d \"{frontendPath}\" && echo モジュールインストール中... && npm install && echo フロントエンド起動中... && npm run start";
-                    }
-                }
-                else
-                {
-                    // 本番環境: 実行ファイルを起動
-                    string exePath = Path.Combine(frontendPath, "VrcSnapArchive.exe");
-                    if (!File.Exists(exePath))
-                    {
-                        exePath = Path.Combine(frontendPath, "SnapArchiveKai.exe");
-                    }
-                    
-                    // まだ見つからない場合はテスト用Electronファイルを使用
-                    // EXEファイルが見つからない場合は通常のElectronアプリを起動
-                    if (!File.Exists(exePath))
-                    {
-                        startInfo.FileName = "cmd.exe";
-                        // test-electron.jsではなく、package.jsonで定義されたnpm startを使用
-                        startInfo.Arguments = $"/c cd /d \"{frontendPath}\" && npm run start";
-                        startInfo.UseShellExecute = false; // シェルを使わない
-                        startInfo.CreateNoWindow = true;   // コンソールウィンドウを表示しない
-                        startInfo.RedirectStandardOutput = true; // 出力をリダイレクト
-                    }
-                    else
-                    {
-                        startInfo.FileName = exePath;
-                        startInfo.UseShellExecute = true; // EXEファイルの場合はシェルを使う
-                    }
-                }
-                
-                // プロセスを起動
-                Process process;
-                
-                if (startInfo.RedirectStandardOutput)
-                {
-                    // 出力をリダイレクトしている場合は別の方法で起動
-                    process = new Process { StartInfo = startInfo };
-                    process.Start();
-                }
-                else
-                {
-                    // 通常の起動
-                    process = Process.Start(startInfo);
-                }
-                
-                // ステータス表示を更新
-                UpdateStatusInfo("メインアプリケーション起動", "Electronアプリを起動しました");
-                
-                // 起動ボタンの状態を更新
-                UpdateLaunchButtonState();
-                
-                // システムトレイに通知
-                notifyIcon.ShowBalloonTip(3000, "VRC SnapArchive", "メインアプリケーションを起動しました", ToolTipIcon.Info);
-                
-                // ランチャーをシステムトレイに格納（非表示化）
-                Hide();
-                
-                // デバッグモードの場合はプロセス終了を監視
-                if (process != null)
-                {
-                    Task.Run(() => {
-                        try {
-                            process.WaitForExit();
-                            BeginInvoke(new Action(() => {
-                                UpdateStatusInfo("Electronアプリ", "アプリが終了しました");
-                                // アプリ終了時にボタン状態も更新
-                                UpdateLaunchButtonState();
-                                 Show();
-                                 // ウィンドウを最小化から元の状態に戻す
-                                WindowState = FormWindowState.Normal;
-                            }));
-                        } catch (Exception ex) {
-                            Debug.WriteLine($"プロセス監視エラー: {ex.Message}");
-                        }
-                    });
-                }
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"メインアプリケーションの起動に失敗しました。\n\n{ex.Message}", 
-                    "エラー", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                
-                // エラーログ記録
-                Debug.WriteLine($"アプリ起動エラー: {ex}");
-            }
+        {
+            MessageBox.Show(
+                "現在メインアプリは開発中です。完成をお待ちください。\n\n" +
+                "最新情報は下記のURLからご確認ください：\n" +
+                "Booth: https://fefaether-vrc.booth.pm/\n" +
+                "Twitter(X): https://x.com/fefaethervrc",
+                "お知らせ",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Information);
         }
 
         /// <summary>
@@ -473,7 +347,7 @@ namespace VSA_launcher
         private void UpdateLaunchButtonState()
         {
             bool isRunning = IsMainAppRunning();
-            
+
             // UIスレッドでの実行を保証
             if (InvokeRequired)
             {
@@ -484,7 +358,7 @@ namespace VSA_launcher
             // ボタンの状態を更新
             launchMainApp_button.Enabled = !isRunning;
             launchMainApp_button.Text = isRunning ? "アプリ実行中" : "アプリを起動する";
-            
+
             // システムトレイのメニュー項目も更新
             メインアプリケーションを起動ToolStripMenuItem.Enabled = !isRunning;
             メインアプリケーションを起動ToolStripMenuItem.Text = isRunning ? "アプリ実行中" : "メインアプリケーションを起動";
@@ -513,7 +387,7 @@ namespace VSA_launcher
                         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
                         "SnapArchiveKai",
                         ".app_running");
-                        
+
                     if (File.Exists(lockFilePath))
                     {
                         try
@@ -539,7 +413,7 @@ namespace VSA_launcher
                         {
                             return true;
                         }
-                        
+
                         if (!createdNew)
                         {
                             mutex.ReleaseMutex();
@@ -587,39 +461,37 @@ namespace VSA_launcher
                 return;
             }
 
-            // 通常の単一フォルダ監視かどうかをチェック
-            bool isMonthFolderStructure = IsMonthFolderStructure(_settings.ScreenshotPath);
+            // 監視開始前に一旦停止
+            _fileWatcher.StopWatching();
 
-            bool success;
-
-            if (isMonthFolderStructure)
+            // ディレクトリが存在するか確認
+            if (!Directory.Exists(_settings.ScreenshotPath))
             {
-                // 月別フォルダ構造を検出した場合、特別な監視を開始
-                success = _fileWatcher.StartWatchingWithMonthFolders(_settings.ScreenshotPath);
+                UpdateStatusInfo("監視エラー", $"指定されたフォルダが見つかりません: {_settings.ScreenshotPath}");
+                return;
+            }
 
-                if (success)
+            // 月別フォルダ構造を検出し、適切な監視方法を選択
+            bool success = _fileWatcher.StartWatching(_settings.ScreenshotPath);
+
+            if (success)
+            {
+                if (_fileWatcher.CurrentMonthFolder != null)
                 {
-                    string currentMonthFolder = _fileWatcher.CurrentMonthFolder ?? "未検出";
+                    // 月別フォルダ監視が自動的に開始された
                     UpdateStatusInfo("月別フォルダ監視開始",
-                        $"親フォルダ: {_settings.ScreenshotPath}, 現在の月: {Path.GetFileName(currentMonthFolder)}");
+                        $"親フォルダ: {_settings.ScreenshotPath}, 現在の月: {Path.GetFileName(_fileWatcher.CurrentMonthFolder)}");
+                }
+                else
+                {
+                    // 通常の単一フォルダ監視
+                    UpdateStatusInfo("監視開始", $"フォルダ: {_settings.ScreenshotPath}");
                 }
             }
             else
             {
-                // 通常の単一フォルダ監視
-                success = _fileWatcher.StartWatching(_settings.ScreenshotPath);
-
-                if (success)
-                {
-                    UpdateStatusInfo("監視開始", $"フォルダ: {_settings.ScreenshotPath}");
-                }
+                UpdateStatusInfo("監視開始失敗", "フォルダの監視を開始できませんでした");
             }
-        }
-
-        // フォルダ構造が月別かどうかを判定
-        private bool IsMonthFolderStructure(string folderPath)
-        {
-            return _folderManager.IsMonthFolderStructure(folderPath);
         }
 
         private void FileWatcher_StatusChanged(object? sender, StatusChangedEventArgs e)
@@ -687,6 +559,369 @@ namespace VSA_launcher
         {
             LaunchMainApplication();
         }
+
+        private void screenShotFile_textBox_TextChanged(object sender, EventArgs e)
+        {
+
+        }
+
+        private void PngMetaDate_button_Click(object sender, EventArgs e)
+        {
+            // ファイルをオープンして選択したファイルの情報を表示
+            OpenFileDialog openFileDialog = new OpenFileDialog();
+            openFileDialog.Filter = "PNG画像|*.png|JPG画像|*.jpg;*.jpeg|すべてのファイル|*.*";
+            openFileDialog.Title = "メタデータを表示する画像を選択";
+
+            if (openFileDialog.ShowDialog() == DialogResult.OK)
+            {
+                PngMetaDate_textBox.Text = openFileDialog.FileName;
+
+                // 選択した画像を表示してメタデータを解析
+                DisplayImageAndMetadata(openFileDialog.FileName);
+            }
+        }
+
+        // 画像をプレビューに表示し、メタデータを解析して表示するメソッド
+        public void DisplayImageAndMetadata(string imagePath)
+        {
+            if (InvokeRequired)
+            {
+                BeginInvoke(new Action(() => DisplayImageAndMetadata(imagePath)));
+                return;
+            }
+
+            try
+            {
+                _currentMetadataImagePath = imagePath;
+
+                // 画像プレビューの表示
+                if (PngPreview_pictureBox.Image != null)
+                {
+                    PngPreview_pictureBox.Image.Dispose();
+                    PngPreview_pictureBox.Image = null;
+                }
+
+                // 画像ファイルが存在するか確認
+                if (string.IsNullOrEmpty(imagePath) || !File.Exists(imagePath))
+                {
+                    UpdateStatusInfo("エラー", "ファイルが見つかりません");
+                    return;
+                }
+
+                // 画像を読み込んで表示
+                using (var stream = new FileStream(imagePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+                {
+                    PngPreview_pictureBox.Image = Image.FromStream(stream);
+                    PngPreview_pictureBox.SizeMode = PictureBoxSizeMode.Zoom;
+                }
+
+                // メタデータの取得と表示
+                Dictionary<string, string> metadata = MetadataAnalyzer.ReadMetadataFromImage(imagePath);
+                DisplayMetadata(metadata);
+            }
+            catch (Exception ex)
+            {
+                UpdateStatusInfo("画像読み込みエラー", ex.Message);
+            }
+        }
+
+        // メタデータをテキストボックスなどに表示
+        private void DisplayMetadata(Dictionary<string, string> metadata)
+        {
+            // デバッグログ出力
+            System.Diagnostics.Debug.WriteLine($"DisplayMetadata called with {metadata.Count} items");
+            foreach (var pair in metadata)
+            {
+                System.Diagnostics.Debug.WriteLine($"  {pair.Key} = {pair.Value}");
+            }
+
+            // メタデータの表示をクリア
+            worldName_richTextBox.Text = string.Empty;
+            worldFriends_richTextBox.Text = string.Empty;
+            photoTime_textBox.Text = string.Empty;
+            photographName_textBox.Text = string.Empty;
+
+            // メタデータを表示
+            if (metadata.TryGetValue("WorldName", out string worldName))
+            {
+                worldName_richTextBox.Text = worldName;
+            }
+
+            if (metadata.TryGetValue("Friends", out string friends))
+            {
+                worldFriends_richTextBox.Text = friends;
+            }
+
+            if (metadata.TryGetValue("CaptureTime", out string captureTime))
+            {
+                photoTime_textBox.Text = captureTime;
+            }
+
+            if (metadata.TryGetValue("Username", out string username))
+            {
+                photographName_textBox.Text = username;
+            }
+
+            // メタデータの存在確認とステータス表示
+            if (metadata.Count == 0)
+            {
+                UpdateStatusInfo("メタデータなし", "この画像にはVSAメタデータが含まれていません");
+            }
+            else
+            {
+                UpdateStatusInfo("メタデータ読み込み完了", $"{metadata.Count}項目のメタデータを読み込みました");
+            }
+        }
+
+        // PictureBoxのクリックイベント - 画像を外部ビューアで開く
+        private void PngPreview_pictureBox_Click(object sender, EventArgs e)
+        {
+            if (!string.IsNullOrEmpty(_currentMetadataImagePath) && File.Exists(_currentMetadataImagePath))
+            {
+                try
+                {
+                    // 画像ファイルをデフォルトのビューアで開く
+                    Process.Start(new ProcessStartInfo
+                    {
+                        FileName = _currentMetadataImagePath,
+                        UseShellExecute = true
+                    });
+                }
+                catch (Exception ex)
+                {
+                    UpdateStatusInfo("画像を開けませんでした", ex.Message);
+                }
+            }
+        }
+
+        // テスト画像作成ボタン用のコード
+        private void CreateTestImage_button_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                // テスト用メタデータ辞書
+                var metadata = new Dictionary<string, string>
+                {
+                    { "VSACheck", "true" },
+                    { "WorldName", "テストワールド名" },
+                    { "WorldID", "wrld_test-world-id-123" },
+                    { "Username", "テストユーザー名" },
+                    { "CaptureTime", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") },
+                    { "Friends", "フレンド1, フレンド2, フレンド3, 日本語名前" },
+                    { "TestKey", "これはテストです" }
+                };
+
+                // 保存先を選択
+                SaveFileDialog saveDialog = new SaveFileDialog
+                {
+                    Filter = "PNG画像|*.png",
+                    Title = "テスト画像の保存先を選択",
+                    FileName = "test_metadata.png"
+                };
+
+                if (saveDialog.ShowDialog() != DialogResult.OK)
+                    return;
+
+                // テスト用の画像を作成
+                using (Bitmap bmp = new Bitmap(400, 300))
+                using (Graphics g = Graphics.FromImage(bmp))
+                {
+                    g.Clear(Color.White);
+
+                    // 日本語のテキストを正しく表示
+                    using (Font font = new Font("Yu Gothic UI", 20))
+                    {
+                        g.DrawString("メタデータテスト画像", font, Brushes.Black, new PointF(50, 120));
+                    }
+
+                    // 一時ファイルとして保存
+                    string tempPath = Path.GetTempFileName() + ".png";
+                    bmp.Save(tempPath, ImageFormat.Png);
+
+                    // デバッグ情報を表示
+                    StringBuilder logSb = new StringBuilder();
+                    logSb.AppendLine("テストデータ:");
+                    foreach (var entry in metadata)
+                    {
+                        logSb.AppendLine($"  {entry.Key}: {entry.Value}");
+                    }
+                    System.Diagnostics.Debug.WriteLine(logSb.ToString());
+
+                    // PngMetadataManager を使ってメタデータを追加して保存
+                    bool success = PngMetadataManager.AddMetadataToPng(tempPath, saveDialog.FileName, metadata);
+
+                    // 一時ファイルの削除
+                    try { File.Delete(tempPath); } catch { }
+
+                    if (success)
+                    {
+                        // メタデータの検証
+                        var pngMetadata = PngMetadataManager.ReadMetadataFromPng(saveDialog.FileName);
+
+                        StringBuilder sb = new StringBuilder();
+                        sb.AppendLine("テスト画像作成結果:");
+                        sb.AppendLine($"保存先: {saveDialog.FileName}");
+                        sb.AppendLine("");
+                        sb.AppendLine($"PngMetadataManager (tEXtチャンク): {pngMetadata.Count}項目");
+                        foreach (var pair in pngMetadata)
+                        {
+                            sb.AppendLine($"   {pair.Key}: {pair.Value}");
+                        }
+
+                        MessageBox.Show(sb.ToString(), "テスト画像作成成功", MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+                        // UIに表示
+                        PngMetaDate_textBox.Text = saveDialog.FileName;
+                        DisplayImageAndMetadata(saveDialog.FileName);
+                    }
+                    else
+                    {
+                        MessageBox.Show("テスト画像の作成に失敗しました。", "エラー", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"テスト画像作成エラー: {ex.Message}\n{ex.StackTrace}", "エラー", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private void LICENSEOpenFolder_button_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                // ライセンスフォルダのパスを取得
+                string licenseFolderPath = Path.Combine(
+                    AppDomain.CurrentDomain.BaseDirectory, 
+                    "LICENSE");
+                
+                // フォルダが存在するか確認
+                if (Directory.Exists(licenseFolderPath))
+                {
+                    // フォルダをエクスプローラーで開く
+                    Process.Start(new ProcessStartInfo
+                    {
+                        FileName = licenseFolderPath,
+                        UseShellExecute = true
+                    });
+                    UpdateStatusInfo("ライセンスフォルダを開きました", $"パス: {licenseFolderPath}");
+                }
+                else
+                {
+                    MessageBox.Show(
+                        "ライセンスフォルダが見つかりませんでした。\nパス: " + licenseFolderPath,
+                        "エラー",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Error);
+                    UpdateStatusInfo("エラー", "ライセンスフォルダが見つかりませんでした");
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(
+                    "ライセンスフォルダを開く際にエラーが発生しました。\n" + ex.Message,
+                    "エラー",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
+                UpdateStatusInfo("エラー", "ライセンスフォルダを開けませんでした");
+            }
+        }
+
+        private void worldFriends_label_Click(object sender, EventArgs e)
+        {
+
+        }
+
+        /// <summary>
+        /// スタートアップチェックボックスの変更イベントハンドラ
+        /// </summary>
+        private void startUp_checkBox_CheckedChanged(object sender, EventArgs e)
+        {
+            try
+            {
+                bool isChecked = startup_checkBox.Checked;
+                bool success;
+
+                if (isChecked)
+                {
+                    // スタートアップに登録
+                    success = StartupManager.RegisterInStartup();
+                    if (success)
+                    {
+                        _startWithWindows = true;
+                        UpdateStatusInfo("設定", "Windowsスタートアップに登録しました");
+                    }
+                    else
+                    {
+                        startup_checkBox.Checked = false;
+                        _startWithWindows = false;
+                        UpdateStatusInfo("エラー", "スタートアップ登録に失敗しました");
+                        MessageBox.Show(
+                            "Windowsスタートアップへの登録に失敗しました。\n管理者権限で実行するか、別の方法をお試しください。",
+                            "スタートアップ登録エラー",
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Warning);
+                    }
+                }
+                else
+                {
+                    // スタートアップから解除
+                    success = StartupManager.RemoveFromStartup();
+                    if (success)
+                    {
+                        _startWithWindows = false;
+                        UpdateStatusInfo("設定", "Windowsスタートアップから解除しました");
+                    }
+                    else
+                    {
+                        startup_checkBox.Checked = true;
+                        _startWithWindows = true;
+                        UpdateStatusInfo("エラー", "スタートアップ解除に失敗しました");
+                        MessageBox.Show(
+                            "Windowsスタートアップからの解除に失敗しました。\n管理者権限で実行するか、別の方法をお試しください。",
+                            "スタートアップ解除エラー",
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Warning);
+                    }
+                }
+
+                // 設定を保存
+                if (_settings != null)
+                {
+                    _settings.LauncherSettings.StartWithWindows = _startWithWindows;
+                    SettingsManager.SaveSettings(_settings);
+                }
+            }
+            catch (Exception ex)
+            {
+                UpdateStatusInfo("エラー", "スタートアップ設定エラー");
+                MessageBox.Show(
+                    $"スタートアップ設定中にエラーが発生しました。\n{ex.Message}",
+                    "エラー",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
+            }
+        }
+
+        /// <summary>
+        /// フォーム初期化時にスタートアップ状態を確認して反映
+        /// </summary>
+        private void InitializeStartupSetting()
+        {
+            // 現在のスタートアップ状態を確認
+            _startWithWindows = StartupManager.IsRegisteredInStartup();
+            
+            // チェックボックスに反映（イベント発火させないようにする）
+            startup_checkBox.CheckedChanged -= startUp_checkBox_CheckedChanged;
+            startup_checkBox.Checked = _startWithWindows;
+            startup_checkBox.CheckedChanged += startUp_checkBox_CheckedChanged;
+            
+            // 設定オブジェクトに反映
+            if (_settings != null)
+            {
+                _settings.LauncherSettings.StartWithWindows = _startWithWindows;
+            }
+        }
     }
 
     public class SystemTrayIcon
@@ -695,59 +930,41 @@ namespace VSA_launcher
         private ContextMenuStrip _contextMenu = null!;
         private VSA_launcher _mainForm;
 
-        public SystemTrayIcon(VSA_launcher mainForm)
+        public SystemTrayIcon(VSA_launcher mainForm, NotifyIcon notifyIcon, ContextMenuStrip contextMenu)
         {
             _mainForm = mainForm;
-            InitializeContextMenu();
-            InitializeNotifyIcon();
-        }
-
-        private void InitializeContextMenu()
-        {
-            _contextMenu = new ContextMenuStrip();
-
-            // メインアプリ起動メニュー項目
-            ToolStripMenuItem launchMainItem = new ToolStripMenuItem("メインアプリ起動");
-            launchMainItem.Click += (sender, e) => LaunchMainApplication();
-
-            // 設定メニュー項目
-            ToolStripMenuItem settingsItem = new ToolStripMenuItem("設定");
-            settingsItem.Click += (sender, e) => ShowSettings();
-
-            // 終了メニュー項目
-            ToolStripMenuItem exitItem = new ToolStripMenuItem("終了");
-            exitItem.Click += (sender, e) => Application.Exit();
-
-            // メニューに項目を追加
-            _contextMenu.Items.Add(launchMainItem);
-            _contextMenu.Items.Add(settingsItem);
-            _contextMenu.Items.Add(new ToolStripSeparator());
-            _contextMenu.Items.Add(exitItem);
-        }
-
-        private void InitializeNotifyIcon()
-        {
-            _notifyIcon = new NotifyIcon
-            {
-                Icon = SystemIcons.Application, // 適切なアイコンに変更する
-                Text = "VRC SnapArchive",
-                ContextMenuStrip = _contextMenu,
-                Visible = true
-            };
-
-            // アイコンダブルクリック時の動作
+            _notifyIcon = notifyIcon;
+            _contextMenu = contextMenu;
+            
+            // NotifyIconにコンテキストメニューを設定
+            _notifyIcon.ContextMenuStrip = _contextMenu;
+            
+            // イベントハンドラの設定
             _notifyIcon.DoubleClick += (sender, e) => ShowSettings();
+            
+            // メニューの各項目を調べて名前で見つける - より安全な方法
+            foreach (ToolStripItem item in _contextMenu.Items)
+            {
+                if (item.Text == "設定")
+                {
+                    item.Click += (sender, e) => ShowSettings();
+                }
+                else if (item.Text == "終了")
+                {
+                    item.Click += (sender, e) => Application.Exit();
+                }
+            }
+            
+            // モニタリング処理を開始
+            StartMainAppMonitoring();
         }
-
         public void LaunchMainApplication()
         {
-            // 独自の実装を削除し、メインフォームの処理を呼び出す
             _mainForm.LaunchMainApplication();
         }
 
         private void ShowSettings()
         {
-            // 設定画面を表示
             _mainForm.Show();
             _mainForm.WindowState = FormWindowState.Normal;
             _mainForm.Activate();
@@ -755,47 +972,13 @@ namespace VSA_launcher
 
         private void StartMainAppMonitoring()
         {
-            Task.Run(() =>
-            {
-                string flagFilePath = Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-                    "SnapArchiveKai",
-                    ".launcher_reactivate");
-
-                while (true)
-                {
-                    // フラグファイルが存在するか確認
-                    if (File.Exists(flagFilePath))
-                    {
-                        try
-                        {
-                            // フラグファイルを削除
-                            File.Delete(flagFilePath);
-
-                            // UIスレッドでフォームを表示
-                            _mainForm.Invoke(new MethodInvoker(() => {
-                                _mainForm.Show();
-                                _mainForm.WindowState = FormWindowState.Normal;
-                                _mainForm.Activate();
-                            }));
-                            break;
-                        }
-                        catch (Exception)
-                        {
-                            // ファイル削除に失敗した場合は少し待つ
-                            Thread.Sleep(1000);
-                        }
-                    }
-
-                    // 1秒ごとに確認
-                    Thread.Sleep(1000);
-                }
-            });
+            // メインアプリケーションの状態を監視するコード
+            // 現在は実装されていないようです
         }
 
         public void Dispose()
         {
-            _notifyIcon.Dispose();
+            // NotifyIconはフォームが所有しているので、ここでは何もしない
         }
     }
 }

@@ -13,11 +13,14 @@ namespace VSA_launcher
     public class FileWatcherService : IDisposable
     {
         // ファイル監視関連
-        private FileSystemWatcher? _watcher;
+        private List<FileSystemWatcher> _watchers = new List<FileSystemWatcher>();
         private readonly string _fileExtension = "*.png";
         private bool _isWatching = false;
         private string? _targetFolder;
         private string? _currentMonthFolder;
+        private Dictionary<string, FileSystemWatcher> _monthWatchers = new Dictionary<string, FileSystemWatcher>();
+        private System.Threading.Timer? _folderCheckTimer;
+        private readonly object _watcherLock = new object();
 
         // 設定
         private readonly AppSettings _settings;
@@ -110,26 +113,68 @@ namespace VSA_launcher
             {
                 StopWatching(); // 既存の監視があれば停止
 
-                _watcher = new FileSystemWatcher
-                {
-                    Path = folderPath,
-                    Filter = _fileExtension,
-                    NotifyFilter = NotifyFilters.FileName | NotifyFilters.LastWrite,
-                    EnableRaisingEvents = true
-                };
+                // 年月フォルダが存在するかチェック
+                bool hasMonthFolders = CheckForMonthFolders(folderPath);
 
-                _watcher.Created += OnFileCreated;
-                _isWatching = true;
-                _targetFolder = folderPath;
-                
-                RaiseStatusChanged($"監視中: {folderPath}");
-                return true;
+                if (hasMonthFolders)
+                {
+                    // 月別フォルダ構造が検出された場合は月別監視を開始
+                    return StartWatchingWithMonthFolders(folderPath);
+                }
+                else
+                {
+                    // 通常の単一フォルダ監視
+                    var watcher = CreateWatcher(folderPath);
+                    
+                    if (watcher != null)
+                    {
+                        lock (_watcherLock)
+                        {
+                            _watchers.Add(watcher);
+                        }
+                        _isWatching = true;
+                        _targetFolder = folderPath;
+                        
+                        RaiseStatusChanged($"監視中: {folderPath}");
+                        return true;
+                    }
+                    return false;
+                }
             }
             catch (Exception ex)
             {
                 _isWatching = false;
                 ErrorCount++;
                 RaiseStatusChanged($"監視エラー: {ex.Message}");
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// 指定されたフォルダ内に月別フォルダが存在するか確認する
+        /// </summary>
+        private bool CheckForMonthFolders(string folderPath)
+        {
+            try
+            {
+                if (!Directory.Exists(folderPath))
+                {
+                    return false;
+                }
+
+                // フォルダ内のサブディレクトリを取得
+                string[] subDirs = Directory.GetDirectories(folderPath);
+                
+                // YYYY-MM 形式のフォルダを検索
+                int monthFolderCount = subDirs
+                    .Select(Path.GetFileName)
+                    .Count(dir => Regex.IsMatch(dir ?? "", @"^\d{4}-\d{2}$"));
+                
+                // 少なくとも1つ以上の月別フォルダが存在すればtrue
+                return monthFolderCount > 0;
+            }
+            catch
+            {
                 return false;
             }
         }
@@ -151,33 +196,19 @@ namespace VSA_launcher
             {
                 StopWatching(); // 既存の監視があれば停止
 
-                // 現在の月フォルダを検出
-                string[] folders = Directory.GetDirectories(rootPath);
-                string currentYearMonth = DateTime.Now.ToString("yyyy-MM");
-                
-                _currentMonthFolder = folders.FirstOrDefault(f => 
-                    Path.GetFileName(f).Equals(currentYearMonth, StringComparison.OrdinalIgnoreCase));
-
-                // 現在の月フォルダが存在しない場合は作成
-                if (_currentMonthFolder == null)
-                {
-                    _currentMonthFolder = Path.Combine(rootPath, currentYearMonth);
-                    Directory.CreateDirectory(_currentMonthFolder);
-                }
-                
-                _watcher = new FileSystemWatcher
-                {
-                    Path = _currentMonthFolder,
-                    Filter = _fileExtension,
-                    NotifyFilter = NotifyFilters.FileName | NotifyFilters.LastWrite,
-                    EnableRaisingEvents = true
-                };
-
-                _watcher.Created += OnFileCreated;
-                _isWatching = true;
                 _targetFolder = rootPath;
+                _isWatching = true;
+
+                // すべての月別フォルダを検出して監視を追加
+                RefreshMonthFolders(rootPath);
                 
-                RaiseStatusChanged($"月別監視中: {_currentMonthFolder}");
+                // 定期的に新しい月フォルダをチェックするタイマーを設定
+                _folderCheckTimer = new System.Threading.Timer(
+                    CheckForNewMonthFolders, rootPath, 
+                    TimeSpan.FromMinutes(5), // 初期遅延
+                    TimeSpan.FromMinutes(5)); // 繰り返し間隔
+                
+                RaiseStatusChanged($"月別フォルダ監視中: {rootPath}");
                 return true;
             }
             catch (Exception ex)
@@ -190,20 +221,172 @@ namespace VSA_launcher
         }
 
         /// <summary>
+        /// 月別フォルダを検索して監視を追加する
+        /// </summary>
+        private void RefreshMonthFolders(string rootPath)
+        {
+            try
+            {
+                if (!Directory.Exists(rootPath))
+                {
+                    return;
+                }
+
+                // 現在の月フォルダ名を取得（YYYY-MM形式）
+                string currentYearMonth = DateTime.Now.ToString("yyyy-MM");
+                string? latestMonthFolder = null;
+                DateTime latestFolderDate = DateTime.MinValue;
+
+                // フォルダ内のサブディレクトリを取得
+                string[] monthFolders = Directory.GetDirectories(rootPath)
+                    .Where(dir => Regex.IsMatch(Path.GetFileName(dir), @"^\d{4}-\d{2}$"))
+                    .ToArray();
+                
+                // 最新の月フォルダを検出
+                foreach (string folder in monthFolders)
+                {
+                    string folderName = Path.GetFileName(folder);
+                    
+                    // YYYY-MM形式の日付を解析
+                    if (DateTime.TryParseExact(folderName, "yyyy-MM", 
+                        System.Globalization.CultureInfo.InvariantCulture, 
+                        System.Globalization.DateTimeStyles.None, 
+                        out DateTime folderDate))
+                    {
+                        // 最も新しい日付のフォルダを保持
+                        if (folderDate > latestFolderDate)
+                        {
+                            latestFolderDate = folderDate;
+                            latestMonthFolder = folder;
+                        }
+                    }
+
+                    // このフォルダが未監視なら追加
+                    if (!_monthWatchers.ContainsKey(folder))
+                    {
+                        var watcher = CreateWatcher(folder);
+                        if (watcher != null)
+                        {
+                            lock (_watcherLock)
+                            {
+                                _watchers.Add(watcher);
+                                _monthWatchers[folder] = watcher;
+                            }
+                            RaiseStatusChanged($"フォルダ追加: {folderName}");
+                        }
+                    }
+                }
+
+                // 最新の月フォルダを設定
+                _currentMonthFolder = latestMonthFolder ?? 
+                    Path.Combine(rootPath, currentYearMonth);
+
+                // もし現在の月フォルダが存在しなければ作成
+                if (!Directory.Exists(_currentMonthFolder))
+                {
+                    try
+                    {
+                        Directory.CreateDirectory(_currentMonthFolder);
+                        
+                        // 新しく作成したフォルダに対して監視を追加
+                        var watcher = CreateWatcher(_currentMonthFolder);
+                        if (watcher != null)
+                        {
+                            lock (_watcherLock)
+                            {
+                                _watchers.Add(watcher);
+                                _monthWatchers[_currentMonthFolder] = watcher;
+                            }
+                        }
+                        
+                        RaiseStatusChanged($"新規フォルダ作成: {Path.GetFileName(_currentMonthFolder)}");
+                    }
+                    catch (Exception ex)
+                    {
+                        ErrorCount++;
+                        RaiseStatusChanged($"フォルダ作成エラー: {ex.Message}");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                ErrorCount++;
+                RaiseStatusChanged($"フォルダ監視エラー: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// 新しい月フォルダをチェックするタイマーコールバック
+        /// </summary>
+        private void CheckForNewMonthFolders(object? state)
+        {
+            string? rootPath = state as string;
+            if (rootPath != null && _isWatching)
+            {
+                RefreshMonthFolders(rootPath);
+            }
+        }
+
+        /// <summary>
+        /// 指定されたフォルダに対するウォッチャーを作成
+        /// </summary>
+        private FileSystemWatcher? CreateWatcher(string folderPath)
+        {
+            try
+            {
+                if (!Directory.Exists(folderPath))
+                {
+                    return null;
+                }
+
+                var watcher = new FileSystemWatcher
+                {
+                    Path = folderPath,
+                    Filter = _fileExtension,
+                    NotifyFilter = NotifyFilters.FileName | NotifyFilters.LastWrite,
+                    EnableRaisingEvents = true
+                };
+
+                watcher.Created += OnFileCreated;
+                return watcher;
+            }
+            catch (Exception ex)
+            {
+                ErrorCount++;
+                RaiseStatusChanged($"監視エラー ({Path.GetFileName(folderPath)}): {ex.Message}");
+                return null;
+            }
+        }
+
+        /// <summary>
         /// 監視の停止
         /// </summary>
         public void StopWatching()
         {
-            if (_watcher != null)
+            // フォルダチェックタイマーを停止
+            if (_folderCheckTimer != null)
             {
-                _watcher.Created -= OnFileCreated;
-                _watcher.EnableRaisingEvents = false;
-                _watcher.Dispose();
-                _watcher = null;
+                _folderCheckTimer.Dispose();
+                _folderCheckTimer = null;
+            }
+            
+            // すべてのウォッチャーを停止して破棄
+            lock (_watcherLock)
+            {
+                foreach (var watcher in _watchers)
+                {
+                    watcher.Created -= OnFileCreated;
+                    watcher.EnableRaisingEvents = false;
+                    watcher.Dispose();
+                }
+                _watchers.Clear();
+                _monthWatchers.Clear();
             }
             
             _isWatching = false;
             _targetFolder = null;
+            _currentMonthFolder = null;
+            
             RaiseStatusChanged("監視停止中");
         }
 

@@ -21,13 +21,11 @@
         private void InitializeComponent()
         {
             components = new System.ComponentModel.Container();
+            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(VSA_launcher));
             notifyIcon = new NotifyIcon(components);
             contextMenuStrip1 = new ContextMenuStrip(components);
-            snapArchiveLauncherを開くToolStripMenuItem = new ToolStripMenuItem();
-            toolStripTextBox1 = new ToolStripTextBox();
-            メインアプリケーションを起動ToolStripMenuItem = new ToolStripMenuItem();
-            toolStripSeparator1 = new ToolStripSeparator();
             設定ToolStripMenuItem = new ToolStripMenuItem();
+            メインアプリケーションを起動ToolStripMenuItem = new ToolStripMenuItem();
             toolStripSeparator2 = new ToolStripSeparator();
             終了ToolStripMenuItem = new ToolStripMenuItem();
             statusStrip1 = new StatusStrip();
@@ -52,77 +50,86 @@
             fileRename_comboBox = new ComboBox();
             fileRename_pictureBox = new PictureBox();
             fileRename_label = new Label();
+            tabControl = new TabControl();
+            main = new TabPage();
+            metaData = new TabPage();
+            worldFriends_richTextBox = new RichTextBox();
+            worldName_richTextBox = new RichTextBox();
+            photoTime_textBox = new TextBox();
+            photographName_textBox = new TextBox();
+            worldFriends_label = new Label();
+            photoTime_label = new Label();
+            photographName_label = new Label();
+            worldName_label = new Label();
+            PngMetaDate_label = new Label();
+            PngMetaDate_textBox = new TextBox();
+            PngMetaDate_button = new Button();
+            PngPreview_pictureBox = new PictureBox();
+            LICENSE = new TabPage();
+            label3 = new Label();
+            startup_checkBox = new CheckBox();
+            LICENSEOpenFolder_button = new Button();
+            label2 = new Label();
+            LICENSE_label = new Label();
             contextMenuStrip1.SuspendLayout();
             statusStrip1.SuspendLayout();
             fileSubdivision_Group.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)fileRename_pictureBox).BeginInit();
+            tabControl.SuspendLayout();
+            main.SuspendLayout();
+            metaData.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)PngPreview_pictureBox).BeginInit();
+            LICENSE.SuspendLayout();
             SuspendLayout();
             // 
             // notifyIcon
             // 
-            notifyIcon.Text = "notifyIcon1";
+            notifyIcon.Icon = (Icon)resources.GetObject("notifyIcon.Icon");
+            notifyIcon.Text = "notifyIcon";
             notifyIcon.Visible = true;
             // 
             // contextMenuStrip1
             // 
-            contextMenuStrip1.Items.AddRange(new ToolStripItem[] { snapArchiveLauncherを開くToolStripMenuItem, toolStripTextBox1, メインアプリケーションを起動ToolStripMenuItem, toolStripSeparator1, 設定ToolStripMenuItem, toolStripSeparator2, 終了ToolStripMenuItem });
+            contextMenuStrip1.Items.AddRange(new ToolStripItem[] { 設定ToolStripMenuItem, メインアプリケーションを起動ToolStripMenuItem, toolStripSeparator2, 終了ToolStripMenuItem });
             contextMenuStrip1.Name = "contextMenuStrip1";
-            contextMenuStrip1.Size = new Size(224, 129);
-            // 
-            // snapArchiveLauncherを開くToolStripMenuItem
-            // 
-            snapArchiveLauncherを開くToolStripMenuItem.Name = "snapArchiveLauncherを開くToolStripMenuItem";
-            snapArchiveLauncherを開くToolStripMenuItem.Size = new Size(223, 22);
-            snapArchiveLauncherを開くToolStripMenuItem.Text = "SnapArchive Launcher を開く";
-            // 
-            // toolStripTextBox1
-            // 
-            toolStripTextBox1.Name = "toolStripTextBox1";
-            toolStripTextBox1.Size = new Size(100, 23);
-            toolStripTextBox1.Text = "監視状態:";
-            toolStripTextBox1.Click += toolStripTextBox1_Click;
-            // 
-            // メインアプリケーションを起動ToolStripMenuItem
-            // 
-            メインアプリケーションを起動ToolStripMenuItem.Name = "メインアプリケーションを起動ToolStripMenuItem";
-            メインアプリケーションを起動ToolStripMenuItem.Size = new Size(223, 22);
-            メインアプリケーションを起動ToolStripMenuItem.Text = "メインアプリケーションを起動";
-            // 
-            // toolStripSeparator1
-            // 
-            toolStripSeparator1.Name = "toolStripSeparator1";
-            toolStripSeparator1.Size = new Size(220, 6);
+            contextMenuStrip1.Size = new Size(203, 76);
             // 
             // 設定ToolStripMenuItem
             // 
             設定ToolStripMenuItem.Name = "設定ToolStripMenuItem";
-            設定ToolStripMenuItem.Size = new Size(223, 22);
+            設定ToolStripMenuItem.Size = new Size(202, 22);
             設定ToolStripMenuItem.Text = "設定";
+            // 
+            // メインアプリケーションを起動ToolStripMenuItem
+            // 
+            メインアプリケーションを起動ToolStripMenuItem.Name = "メインアプリケーションを起動ToolStripMenuItem";
+            メインアプリケーションを起動ToolStripMenuItem.Size = new Size(202, 22);
+            メインアプリケーションを起動ToolStripMenuItem.Text = "メインアプリケーションを起動";
             // 
             // toolStripSeparator2
             // 
             toolStripSeparator2.Name = "toolStripSeparator2";
-            toolStripSeparator2.Size = new Size(220, 6);
+            toolStripSeparator2.Size = new Size(199, 6);
             // 
             // 終了ToolStripMenuItem
             // 
             終了ToolStripMenuItem.Name = "終了ToolStripMenuItem";
-            終了ToolStripMenuItem.Size = new Size(223, 22);
+            終了ToolStripMenuItem.Size = new Size(202, 22);
             終了ToolStripMenuItem.Text = "終了";
             // 
             // statusStrip1
             // 
             statusStrip1.Items.AddRange(new ToolStripItem[] { startingState_toolStripStatusLabel, fileStatus_toolStripStatusLabel1 });
-            statusStrip1.Location = new Point(0, 321);
+            statusStrip1.Location = new Point(0, 347);
             statusStrip1.Name = "statusStrip1";
-            statusStrip1.Size = new Size(389, 22);
+            statusStrip1.Size = new Size(394, 22);
             statusStrip1.TabIndex = 1;
             statusStrip1.Text = "statusStrip1";
             // 
             // startingState_toolStripStatusLabel
             // 
             startingState_toolStripStatusLabel.Name = "startingState_toolStripStatusLabel";
-            startingState_toolStripStatusLabel.Size = new Size(256, 17);
+            startingState_toolStripStatusLabel.Size = new Size(261, 17);
             startingState_toolStripStatusLabel.Spring = true;
             startingState_toolStripStatusLabel.Text = "toolStripStatusLabel1";
             // 
@@ -135,7 +142,7 @@
             // screenshotsFolder_label
             // 
             screenshotsFolder_label.AutoSize = true;
-            screenshotsFolder_label.Location = new Point(12, 9);
+            screenshotsFolder_label.Location = new Point(3, 7);
             screenshotsFolder_label.Name = "screenshotsFolder_label";
             screenshotsFolder_label.Size = new Size(118, 15);
             screenshotsFolder_label.TabIndex = 2;
@@ -144,7 +151,7 @@
             // outputFolder_label
             // 
             outputFolder_label.AutoSize = true;
-            outputFolder_label.Location = new Point(12, 62);
+            outputFolder_label.Location = new Point(3, 60);
             outputFolder_label.Name = "outputFolder_label";
             outputFolder_label.Size = new Size(78, 15);
             outputFolder_label.TabIndex = 3;
@@ -152,14 +159,15 @@
             // 
             // screenShotFile_textBox
             // 
-            screenShotFile_textBox.Location = new Point(12, 27);
+            screenShotFile_textBox.Location = new Point(3, 25);
             screenShotFile_textBox.Name = "screenShotFile_textBox";
             screenShotFile_textBox.Size = new Size(293, 23);
             screenShotFile_textBox.TabIndex = 4;
+            screenShotFile_textBox.TextChanged += screenShotFile_textBox_TextChanged;
             // 
             // screenShotFile_button
             // 
-            screenShotFile_button.Location = new Point(311, 26);
+            screenShotFile_button.Location = new Point(302, 24);
             screenShotFile_button.Name = "screenShotFile_button";
             screenShotFile_button.Size = new Size(67, 23);
             screenShotFile_button.TabIndex = 5;
@@ -169,7 +177,7 @@
             // 
             // outPut_button
             // 
-            outPut_button.Location = new Point(311, 80);
+            outPut_button.Location = new Point(302, 78);
             outPut_button.Name = "outPut_button";
             outPut_button.Size = new Size(67, 23);
             outPut_button.TabIndex = 7;
@@ -179,14 +187,14 @@
             // 
             // outPut_textBox
             // 
-            outPut_textBox.Location = new Point(12, 80);
+            outPut_textBox.Location = new Point(3, 78);
             outPut_textBox.Name = "outPut_textBox";
             outPut_textBox.Size = new Size(293, 23);
             outPut_textBox.TabIndex = 6;
             // 
             // launchMainApp_button
             // 
-            launchMainApp_button.Location = new Point(266, 265);
+            launchMainApp_button.Location = new Point(257, 263);
             launchMainApp_button.Name = "launchMainApp_button";
             launchMainApp_button.Size = new Size(121, 55);
             launchMainApp_button.TabIndex = 8;
@@ -198,7 +206,7 @@
             metadataEnabled_checkBox.AutoSize = true;
             metadataEnabled_checkBox.Checked = true;
             metadataEnabled_checkBox.CheckState = CheckState.Checked;
-            metadataEnabled_checkBox.Location = new Point(12, 109);
+            metadataEnabled_checkBox.Location = new Point(3, 107);
             metadataEnabled_checkBox.Name = "metadataEnabled_checkBox";
             metadataEnabled_checkBox.Size = new Size(154, 19);
             metadataEnabled_checkBox.TabIndex = 9;
@@ -210,7 +218,7 @@
             monthCompression_checkBox.AutoSize = true;
             monthCompression_checkBox.Checked = true;
             monthCompression_checkBox.CheckState = CheckState.Checked;
-            monthCompression_checkBox.Location = new Point(12, 263);
+            monthCompression_checkBox.Location = new Point(3, 261);
             monthCompression_checkBox.Name = "monthCompression_checkBox";
             monthCompression_checkBox.Size = new Size(144, 19);
             monthCompression_checkBox.TabIndex = 10;
@@ -222,7 +230,7 @@
             fileSubdivision_checkBox.AutoSize = true;
             fileSubdivision_checkBox.Checked = true;
             fileSubdivision_checkBox.CheckState = CheckState.Checked;
-            fileSubdivision_checkBox.Location = new Point(12, 188);
+            fileSubdivision_checkBox.Location = new Point(3, 186);
             fileSubdivision_checkBox.Name = "fileSubdivision_checkBox";
             fileSubdivision_checkBox.Size = new Size(182, 19);
             fileSubdivision_checkBox.TabIndex = 11;
@@ -234,11 +242,11 @@
             // 
             label1.AutoSize = true;
             label1.ForeColor = Color.Red;
-            label1.Location = new Point(48, 285);
+            label1.Location = new Point(21, 283);
             label1.Name = "label1";
-            label1.Size = new Size(212, 15);
+            label1.Size = new Size(230, 15);
             label1.TabIndex = 12;
-            label1.Text = "メインアプリを起動しないと機能は使えません";
+            label1.Text = "メインアプリを起動しないとこの機能は使えません";
             label1.Click += label1_Click;
             // 
             // fileSubdivision_Group
@@ -246,7 +254,7 @@
             fileSubdivision_Group.Controls.Add(dayRadio_Button);
             fileSubdivision_Group.Controls.Add(weekRadio_Button);
             fileSubdivision_Group.Controls.Add(monthRadio_Button);
-            fileSubdivision_Group.Location = new Point(12, 213);
+            fileSubdivision_Group.Location = new Point(3, 211);
             fileSubdivision_Group.Name = "fileSubdivision_Group";
             fileSubdivision_Group.Size = new Size(207, 44);
             fileSubdivision_Group.TabIndex = 13;
@@ -292,7 +300,7 @@
             checkBox3.AutoSize = true;
             checkBox3.Checked = true;
             checkBox3.CheckState = CheckState.Checked;
-            checkBox3.Location = new Point(12, 134);
+            checkBox3.Location = new Point(3, 132);
             checkBox3.Name = "checkBox3";
             checkBox3.Size = new Size(135, 19);
             checkBox3.TabIndex = 14;
@@ -304,7 +312,7 @@
             // 
             fileRename_comboBox.FormattingEnabled = true;
             fileRename_comboBox.Items.AddRange(new object[] { "年_月_日_時分_連番", "年月日_時分_連番", "年-月-日-曜日-時分-連番", "日-月-年-時分-連番", "月-日-年-時分-連番", "年.月.日.時分.連番", "時分_年月日_連番" });
-            fileRename_comboBox.Location = new Point(12, 159);
+            fileRename_comboBox.Location = new Point(3, 157);
             fileRename_comboBox.Name = "fileRename_comboBox";
             fileRename_comboBox.Size = new Size(162, 23);
             fileRename_comboBox.TabIndex = 15;
@@ -312,7 +320,7 @@
             // 
             // fileRename_pictureBox
             // 
-            fileRename_pictureBox.Location = new Point(230, 134);
+            fileRename_pictureBox.Location = new Point(221, 132);
             fileRename_pictureBox.Name = "fileRename_pictureBox";
             fileRename_pictureBox.Size = new Size(30, 30);
             fileRename_pictureBox.TabIndex = 16;
@@ -321,44 +329,260 @@
             // fileRename_label
             // 
             fileRename_label.AutoSize = true;
-            fileRename_label.Location = new Point(198, 167);
+            fileRename_label.Location = new Point(189, 165);
             fileRename_label.Name = "fileRename_label";
             fileRename_label.Size = new Size(104, 15);
             fileRename_label.TabIndex = 18;
             fileRename_label.Text = "ファイル名のプレビュー";
             // 
+            // tabControl
+            // 
+            tabControl.Controls.Add(main);
+            tabControl.Controls.Add(metaData);
+            tabControl.Controls.Add(LICENSE);
+            tabControl.Location = new Point(0, 0);
+            tabControl.Name = "tabControl";
+            tabControl.SelectedIndex = 0;
+            tabControl.Size = new Size(398, 363);
+            tabControl.TabIndex = 19;
+            // 
+            // main
+            // 
+            main.Controls.Add(screenShotFile_textBox);
+            main.Controls.Add(screenshotsFolder_label);
+            main.Controls.Add(fileRename_label);
+            main.Controls.Add(outputFolder_label);
+            main.Controls.Add(fileRename_pictureBox);
+            main.Controls.Add(screenShotFile_button);
+            main.Controls.Add(fileRename_comboBox);
+            main.Controls.Add(outPut_textBox);
+            main.Controls.Add(checkBox3);
+            main.Controls.Add(outPut_button);
+            main.Controls.Add(fileSubdivision_Group);
+            main.Controls.Add(launchMainApp_button);
+            main.Controls.Add(label1);
+            main.Controls.Add(metadataEnabled_checkBox);
+            main.Controls.Add(fileSubdivision_checkBox);
+            main.Controls.Add(monthCompression_checkBox);
+            main.Location = new Point(4, 24);
+            main.Name = "main";
+            main.Padding = new Padding(3);
+            main.Size = new Size(390, 335);
+            main.TabIndex = 0;
+            main.Text = "メイン";
+            main.UseVisualStyleBackColor = true;
+            // 
+            // metaData
+            // 
+            metaData.Controls.Add(worldFriends_richTextBox);
+            metaData.Controls.Add(worldName_richTextBox);
+            metaData.Controls.Add(photoTime_textBox);
+            metaData.Controls.Add(photographName_textBox);
+            metaData.Controls.Add(worldFriends_label);
+            metaData.Controls.Add(photoTime_label);
+            metaData.Controls.Add(photographName_label);
+            metaData.Controls.Add(worldName_label);
+            metaData.Controls.Add(PngMetaDate_label);
+            metaData.Controls.Add(PngMetaDate_textBox);
+            metaData.Controls.Add(PngMetaDate_button);
+            metaData.Controls.Add(PngPreview_pictureBox);
+            metaData.Location = new Point(4, 24);
+            metaData.Name = "metaData";
+            metaData.Size = new Size(390, 335);
+            metaData.TabIndex = 2;
+            metaData.Text = "メタデータ";
+            metaData.UseVisualStyleBackColor = true;
+            // 
+            // worldFriends_richTextBox
+            // 
+            worldFriends_richTextBox.Location = new Point(194, 218);
+            worldFriends_richTextBox.Name = "worldFriends_richTextBox";
+            worldFriends_richTextBox.Size = new Size(173, 76);
+            worldFriends_richTextBox.TabIndex = 28;
+            worldFriends_richTextBox.Text = "";
+            // 
+            // worldName_richTextBox
+            // 
+            worldName_richTextBox.Location = new Point(3, 218);
+            worldName_richTextBox.Name = "worldName_richTextBox";
+            worldName_richTextBox.Size = new Size(173, 76);
+            worldName_richTextBox.TabIndex = 27;
+            worldName_richTextBox.Text = "";
+            // 
+            // photoTime_textBox
+            // 
+            photoTime_textBox.Location = new Point(194, 171);
+            photoTime_textBox.Name = "photoTime_textBox";
+            photoTime_textBox.Size = new Size(173, 23);
+            photoTime_textBox.TabIndex = 26;
+            // 
+            // photographName_textBox
+            // 
+            photographName_textBox.Location = new Point(3, 170);
+            photographName_textBox.Name = "photographName_textBox";
+            photographName_textBox.Size = new Size(173, 23);
+            photographName_textBox.TabIndex = 25;
+            // 
+            // worldFriends_label
+            // 
+            worldFriends_label.AutoSize = true;
+            worldFriends_label.Location = new Point(194, 200);
+            worldFriends_label.Name = "worldFriends_label";
+            worldFriends_label.Size = new Size(107, 15);
+            worldFriends_label.TabIndex = 24;
+            worldFriends_label.Text = "一緒にいるユーザー名";
+            worldFriends_label.Click += worldFriends_label_Click;
+            // 
+            // photoTime_label
+            // 
+            photoTime_label.AutoSize = true;
+            photoTime_label.Location = new Point(194, 153);
+            photoTime_label.Name = "photoTime_label";
+            photoTime_label.Size = new Size(55, 15);
+            photoTime_label.TabIndex = 23;
+            photoTime_label.Text = "撮影時刻";
+            // 
+            // photographName_label
+            // 
+            photographName_label.AutoSize = true;
+            photographName_label.Location = new Point(3, 153);
+            photographName_label.Name = "photographName_label";
+            photographName_label.Size = new Size(55, 15);
+            photographName_label.TabIndex = 22;
+            photographName_label.Text = "撮影者名";
+            // 
+            // worldName_label
+            // 
+            worldName_label.AutoSize = true;
+            worldName_label.Location = new Point(3, 200);
+            worldName_label.Name = "worldName_label";
+            worldName_label.Size = new Size(54, 15);
+            worldName_label.TabIndex = 21;
+            worldName_label.Text = "ワールド名";
+            // 
+            // PngMetaDate_label
+            // 
+            PngMetaDate_label.AutoSize = true;
+            PngMetaDate_label.Location = new Point(3, 7);
+            PngMetaDate_label.Name = "PngMetaDate_label";
+            PngMetaDate_label.Size = new Size(192, 15);
+            PngMetaDate_label.TabIndex = 20;
+            PngMetaDate_label.Text = "PNGメタデータをチェックする画像を選択";
+            // 
+            // PngMetaDate_textBox
+            // 
+            PngMetaDate_textBox.Location = new Point(3, 25);
+            PngMetaDate_textBox.Name = "PngMetaDate_textBox";
+            PngMetaDate_textBox.Size = new Size(293, 23);
+            PngMetaDate_textBox.TabIndex = 18;
+            // 
+            // PngMetaDate_button
+            // 
+            PngMetaDate_button.Location = new Point(302, 24);
+            PngMetaDate_button.Name = "PngMetaDate_button";
+            PngMetaDate_button.Size = new Size(67, 23);
+            PngMetaDate_button.TabIndex = 19;
+            PngMetaDate_button.Text = "参照";
+            PngMetaDate_button.UseVisualStyleBackColor = true;
+            PngMetaDate_button.Click += PngMetaDate_button_Click;
+            // 
+            // PngPreview_pictureBox
+            // 
+            PngPreview_pictureBox.Location = new Point(0, 54);
+            PngPreview_pictureBox.Name = "PngPreview_pictureBox";
+            PngPreview_pictureBox.Size = new Size(390, 96);
+            PngPreview_pictureBox.TabIndex = 17;
+            PngPreview_pictureBox.TabStop = false;
+            // 
+            // LICENSE
+            // 
+            LICENSE.Controls.Add(label3);
+            LICENSE.Controls.Add(startup_checkBox);
+            LICENSE.Controls.Add(LICENSEOpenFolder_button);
+            LICENSE.Controls.Add(label2);
+            LICENSE.Controls.Add(LICENSE_label);
+            LICENSE.Location = new Point(4, 24);
+            LICENSE.Name = "LICENSE";
+            LICENSE.Padding = new Padding(3);
+            LICENSE.Size = new Size(390, 335);
+            LICENSE.TabIndex = 1;
+            LICENSE.Text = "その他";
+            LICENSE.UseVisualStyleBackColor = true;
+            // 
+            // label3
+            // 
+            label3.AutoSize = true;
+            label3.Font = new Font("Yu Gothic UI Semibold", 12F, FontStyle.Bold, GraphicsUnit.Point, 128);
+            label3.Location = new Point(3, 151);
+            label3.Name = "label3";
+            label3.Size = new Size(93, 21);
+            label3.TabIndex = 4;
+            label3.Text = "スタートアップ";
+            // 
+            // startup_checkBox
+            // 
+            startup_checkBox.AutoSize = true;
+            startup_checkBox.Location = new Point(3, 175);
+            startup_checkBox.Name = "startup_checkBox";
+            startup_checkBox.Size = new Size(153, 19);
+            startup_checkBox.TabIndex = 3;
+            startup_checkBox.Text = "スタートアップアプリに入れる";
+            startup_checkBox.UseVisualStyleBackColor = true;
+            // 
+            // LICENSEOpenFolder_button
+            // 
+            LICENSEOpenFolder_button.Location = new Point(3, 61);
+            LICENSEOpenFolder_button.Name = "LICENSEOpenFolder_button";
+            LICENSEOpenFolder_button.Size = new Size(145, 58);
+            LICENSEOpenFolder_button.TabIndex = 2;
+            LICENSEOpenFolder_button.Text = "ライセンスフォルダ(OpenFolder)";
+            LICENSEOpenFolder_button.UseVisualStyleBackColor = true;
+            LICENSEOpenFolder_button.Click += LICENSEOpenFolder_button_Click;
+            // 
+            // label2
+            // 
+            label2.AutoSize = true;
+            label2.Location = new Point(3, 43);
+            label2.Name = "label2";
+            label2.Size = new Size(145, 15);
+            label2.TabIndex = 1;
+            label2.Text = "LICENSEのフォルダに飛べます";
+            // 
+            // LICENSE_label
+            // 
+            LICENSE_label.AutoSize = true;
+            LICENSE_label.Font = new Font("Yu Gothic UI Semibold", 12F, FontStyle.Bold, GraphicsUnit.Point, 128);
+            LICENSE_label.Location = new Point(3, 7);
+            LICENSE_label.Name = "LICENSE_label";
+            LICENSE_label.Size = new Size(70, 21);
+            LICENSE_label.TabIndex = 0;
+            LICENSE_label.Text = "LICENSE";
+            // 
             // VSA_launcher
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(389, 343);
-            Controls.Add(fileRename_label);
-            Controls.Add(fileRename_pictureBox);
-            Controls.Add(fileRename_comboBox);
-            Controls.Add(checkBox3);
-            Controls.Add(fileSubdivision_Group);
-            Controls.Add(label1);
-            Controls.Add(fileSubdivision_checkBox);
-            Controls.Add(monthCompression_checkBox);
-            Controls.Add(metadataEnabled_checkBox);
-            Controls.Add(launchMainApp_button);
-            Controls.Add(outPut_button);
-            Controls.Add(outPut_textBox);
-            Controls.Add(screenShotFile_button);
-            Controls.Add(screenShotFile_textBox);
-            Controls.Add(outputFolder_label);
-            Controls.Add(screenshotsFolder_label);
+            ClientSize = new Size(394, 369);
             Controls.Add(statusStrip1);
+            Controls.Add(tabControl);
+            Icon = (Icon)resources.GetObject("$this.Icon");
             Name = "VSA_launcher";
             Text = "エーテル製　vrcSnapArchive-launcher";
             Load += Form1_Load;
             contextMenuStrip1.ResumeLayout(false);
-            contextMenuStrip1.PerformLayout();
             statusStrip1.ResumeLayout(false);
             statusStrip1.PerformLayout();
             fileSubdivision_Group.ResumeLayout(false);
             fileSubdivision_Group.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)fileRename_pictureBox).EndInit();
+            tabControl.ResumeLayout(false);
+            main.ResumeLayout(false);
+            main.PerformLayout();
+            metaData.ResumeLayout(false);
+            metaData.PerformLayout();
+            ((System.ComponentModel.ISupportInitialize)PngPreview_pictureBox).EndInit();
+            LICENSE.ResumeLayout(false);
+            LICENSE.PerformLayout();
             ResumeLayout(false);
             PerformLayout();
         }
@@ -367,10 +591,7 @@
 
         private NotifyIcon notifyIcon;
         private ContextMenuStrip contextMenuStrip1;
-        private ToolStripMenuItem snapArchiveLauncherを開くToolStripMenuItem;
         private ToolStripMenuItem メインアプリケーションを起動ToolStripMenuItem;
-        private ToolStripTextBox toolStripTextBox1;
-        private ToolStripSeparator toolStripSeparator1;
         private ToolStripMenuItem 設定ToolStripMenuItem;
         private ToolStripSeparator toolStripSeparator2;
         private ToolStripMenuItem 終了ToolStripMenuItem;
@@ -400,5 +621,26 @@
         {
             // Add your event handling code here
         }
+        private TabControl tabControl;
+        private TabPage main;
+        private TabPage LICENSE;
+        private TabPage metaData;
+        private Label PngMetaDate_label;
+        private TextBox PngMetaDate_textBox;
+        private Button PngMetaDate_button;
+        private PictureBox PngPreview_pictureBox;
+        private Label photographName_label;
+        private Label worldName_label;
+        private Label worldFriends_label;
+        private Label photoTime_label;
+        private RichTextBox worldFriends_richTextBox;
+        private RichTextBox worldName_richTextBox;
+        private TextBox photoTime_textBox;
+        private TextBox photographName_textBox;
+        private Label LICENSE_label;
+        private Button LICENSEOpenFolder_button;
+        private Label label2;
+        private CheckBox startup_checkBox;
+        private Label label3;
     }
 }
