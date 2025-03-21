@@ -506,7 +506,7 @@
             LICENSE.Padding = new Padding(3);
             LICENSE.Size = new Size(390, 335);
             LICENSE.TabIndex = 1;
-            LICENSE.Text = "ライセンス";
+            LICENSE.Text = "その他";
             LICENSE.UseVisualStyleBackColor = true;
             // 
             // label3
