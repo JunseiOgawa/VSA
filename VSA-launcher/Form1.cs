@@ -68,12 +68,33 @@ namespace VSA_launcher
 
                 _logParser = new VRChatLogParser();
 
-                // 1分ごとにログを再解析
                 System.Windows.Forms.Timer logUpdateTimer = new System.Windows.Forms.Timer();
-                logUpdateTimer.Interval = 60000; // 1分
-                logUpdateTimer.Tick += (s, e) => _logParser.ParseLatestLog();
+                logUpdateTimer.Interval = 2000; // 2秒ごとに更新
+                logUpdateTimer.Tick += (s, e) => 
+                {
+                    _logParser.ParseLatestLog();
+                    
+                    // ログを見に行った後、現在のフレンド情報をコンソールに出力
+                    Debug.WriteLine($"[{DateTime.Now:yyyy.MM.dd HH:mm:ss}] 現在のインスタンス内ユーザー情報:");
+                    
+                    // フレンドリストを取得して出力
+                    if (_logParser.CurrentFriends != null && _logParser.CurrentFriends.Any())
+                    {
+                        foreach (var friend in _logParser.CurrentFriends)
+                        {
+                            Debug.WriteLine($" - {friend}");
+                        }
+                    }
+                    else
+                    {
+                        Debug.WriteLine(" - インスタンス内ユーザー情報なし");
+                    }
+                    
+                    // 世界情報も出力
+                    Debug.WriteLine("----------------------------------------");
+                };
                 logUpdateTimer.Start();
-
+                
                 // 画像プロセッサを初期化
                 _folderManager = new FolderStructureManager(_settings);
                 _fileNameGenerator = new FileNameGenerator(_settings);
@@ -647,9 +668,9 @@ namespace VSA_launcher
                 worldName_richTextBox.Text = worldName;
             }
 
-            if (metadata.TryGetValue("Friends", out string friends))
+            if (metadata.TryGetValue("Usernames", out string usernames)) // 'Friends'を'Usernames'に変更
             {
-                worldFriends_richTextBox.Text = friends;
+                worldFriends_richTextBox.Text = usernames;
             }
 
             if (metadata.TryGetValue("CaptureTime", out string captureTime))
@@ -657,9 +678,9 @@ namespace VSA_launcher
                 photoTime_textBox.Text = captureTime;
             }
 
-            if (metadata.TryGetValue("Username", out string username))
+            if (metadata.TryGetValue("User", out string user)) // 'Username'を'User'に変更
             {
-                photographName_textBox.Text = username;
+                photographName_textBox.Text = user;
             }
 
             // メタデータの存在確認とステータス表示
@@ -705,9 +726,9 @@ namespace VSA_launcher
                     { "VSACheck", "true" },
                     { "WorldName", "テストワールド名" },
                     { "WorldID", "wrld_test-world-id-123" },
-                    { "Username", "テストユーザー名" },
+                    { "User", "テストユーザー名" }, // 'Username'を'User'に変更
                     { "CaptureTime", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") },
-                    { "Friends", "フレンド1, フレンド2, フレンド3, 日本語名前" },
+                    { "Usernames", "ユーザー1, ユーザー2, ユーザー3, 日本語名前" },
                     { "TestKey", "これはテストです" }
                 };
 

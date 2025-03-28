@@ -41,33 +41,20 @@ namespace VSA_launcher
                 _logParser.ParseLatestLog();
 
                 // ユーザー名（撮影者）の情報を確保
-                string username = _logParser.Username;
-                if (string.IsNullOrEmpty(username))
-                {
-                    username = "Unknown User";
-                    Debug.WriteLine("警告: ユーザー名（撮影者）情報が取得できませんでした。デフォルト値を使用します。");
-                }
+                string username = "Unknown User";
 
                 // メタデータの作成
                 var metadata = new Dictionary<string, string>
                 {
                     { "WorldName", _logParser.CurrentWorldName ?? "Unknown" },
                     { "WorldID", _logParser.CurrentWorldId ?? "Unknown" },
-                    { "Username", username },  // 確実に値が入るように修正
+                    { "User", username },  // 'Username'を'User'に変更
                     { "CaptureTime", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") },
                     { "VSA", "true" }, // 処理済みフラグを追加
                     { "VSACheck", "true" } // 互換性のためのフラグ
                 };
 
-                // フレンド情報が存在する場合は追加
-                if (_logParser.CurrentFriends != null && _logParser.CurrentFriends.Count > 0)
-                {
-                    metadata["Friends"] = _logParser.GetFriendsString();
-                }
-                else
-                {
-                    metadata["Friends"] = "";  // 空の値でも明示的にキーを追加
-                }
+                    metadata["Usernames"] = _logParser.GetFriendsString(); 
 
                 try
                 {

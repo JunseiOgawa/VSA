@@ -72,10 +72,10 @@ namespace VSA_launcher
                     textChunks.Add(CreateTextChunkData("WorldID", worldId));
                 }
 
-                if (metadata.TryGetValue("Username", out string username))
+                if (metadata.TryGetValue("User", out string user)) // 'Username'を'User'に変更
                 {
                     // 確実にBase64エンコードされるよう明示的に処理
-                    textChunks.Add(CreateTextChunkData("Username", username));
+                    textChunks.Add(CreateTextChunkData("User", user));
                 }
 
                 if (metadata.TryGetValue("CaptureTime", out string captureTime))
@@ -83,10 +83,10 @@ namespace VSA_launcher
                     textChunks.Add(CreateTextChunkData("CaptureTime", captureTime));
                 }
 
-                if (metadata.TryGetValue("Friends", out string friends))
+                if (metadata.TryGetValue("Usernames", out string usernames)) // 'Friends'を'Usernames'に変更
                 {
                     // 確実にBase64エンコードされるよう明示的に処理
-                    textChunks.Add(CreateTextChunkData("Friends", friends));
+                    textChunks.Add(CreateTextChunkData("Usernames", usernames));
                 }
                 
                 // 3. 説明文を追加
@@ -98,7 +98,7 @@ namespace VSA_launcher
                 if (metadata.ContainsKey("WorldID"))
                     description.AppendLine($"ID: {metadata["WorldID"]}");
                 if (metadata.ContainsKey("Username"))
-                    description.AppendLine($"User: {metadata["Username"]}");
+                    description.AppendLine($"User: {metadata["Username"]}"); // ↑このメタデータキーは互換性のために残しておく
                 if (metadata.ContainsKey("CaptureTime"))
                     description.AppendLine($"Time: {metadata["CaptureTime"]}");
                 
@@ -148,8 +148,8 @@ namespace VSA_launcher
             
             // 下記の重要フィールドや非ASCII文字を含む場合は必ずBase64エンコード
             bool requiresEncoding = keyword == "WorldName" || 
-                                    keyword == "Username" || 
-                                    keyword == "Friends" ||
+                                    keyword == "User" || // 'Username'を'User'に変更
+                                    keyword == "Usernames" ||
                                     keyword == "Description" ||
                                     ContainsNonAscii(text);
             
@@ -423,9 +423,9 @@ namespace VSA_launcher
                         { "WorldName", logParser.CurrentWorldName ?? "Unknown" },
                         { "WorldID", logParser.CurrentWorldId ?? "Unknown" },
                         // 撮影者情報を明示的に追加
-                        { "Username", logParser.Username ?? "Unknown User" },
+                        { "User", logParser.Username ?? "Unknown User" }, // 'Username'を'User'に変更
                         { "CaptureTime", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") },
-                        { "Friends", logParser.GetFriendsString() }
+                        { "Usernames", logParser.GetFriendsString() } // 'Friends'を'Usernames'に変更
                     };
                     
                     // 追加メタデータがあれば合併

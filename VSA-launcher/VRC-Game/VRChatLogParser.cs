@@ -26,16 +26,6 @@ namespace VSA_launcher
         private readonly Regex _worldEntryPattern = new Regex(@"Entering Room: (.*?)(?:\n|$)", RegexOptions.Compiled);
         private readonly Regex _worldIdPattern = new Regex(@"wrld_[0-9a-fA-F\-]+", RegexOptions.Compiled);
 
-        // フレンド検出用の正規表現
-        private readonly Regex _playerJoinedPattern = new Regex(@"\[Behaviour\] OnPlayerJoin(?:ed|Complete) \((.*?)\)", RegexOptions.Compiled);
-        private readonly Regex _remotePlayerPattern = new Regex(@"\[Behaviour\] Initialized PlayerAPI ""(.*?)"" is remote", RegexOptions.Compiled);
-        
-        // OnPlayerLeftイベント検出用の正規表現を追加
-        private readonly Regex _playerLeftPattern = new Regex(@"\[Behaviour\] OnPlayerLeft (.*?)(?: \(.*?\))?$", RegexOptions.Compiled);
-
-        // ユーザー名（撮影者）を抽出するためのパターン
-        private readonly Regex _usernamePattern = new Regex(@"\[Behaviour\] Initialized PlayerAPI ""(.*?)"" is local", RegexOptions.Compiled);
-        
         // タイムスタンプ付きログエントリの正規表現
         private readonly Regex _timeStampLogPattern = new Regex(@"(\d{4}.\d{2}.\d{2} \d{2}:\d{2}:\d{2}).*", RegexOptions.Compiled);
         
@@ -47,6 +37,7 @@ namespace VSA_launcher
         // 解析結果の保持
         public string CurrentWorldName { get; private set; } = "Unknown World";
         public string CurrentWorldId { get; private set; } = "";
+        // フレンドリストを保持するリストを追加
         public List<string> CurrentFriends { get; private set; } = new List<string>();
         // 撮影者（ユーザー名）を保持するプロパティを追加
         public string Username { get; private set; } = "Unknown User";
@@ -54,7 +45,7 @@ namespace VSA_launcher
         public bool IsValidLogFound { get; private set; }
         
         // 自動更新間隔（ミリ秒）
-        private const int AUTO_UPDATE_INTERVAL = 10000; // 10秒
+        private const int AUTO_UPDATE_INTERVAL = 2000; // 2秒
         private System.Threading.Timer? _autoUpdateTimer;
         
         // イベント - ワールド変更時に発火
@@ -67,6 +58,8 @@ namespace VSA_launcher
         // プレイヤー管理用
         private HashSet<string> _activePlayers = new HashSet<string>();
         private DateTime _lastRoomJoinTime = DateTime.MinValue;
+
+        private VRChatUserDetector _userDetector = new VRChatUserDetector();
         
         /// <summary>
         /// コンストラクタ - VRChatログフォルダを検索して初期化
@@ -414,194 +407,10 @@ namespace VSA_launcher
         /// </summary>
         private void ExtractFriendsList(string logContent, DateTime worldChangeTime)
         {
-            // 現在のプレイヤーリストをリセット
-            _activePlayers.Clear();
-            
-            // 信頼できるインスタンス範囲のログを抽出
-            string currentInstanceLog = ExtractCurrentInstanceLog(logContent, worldChangeTime);
-            
-            Console.WriteLine($"[DEBUG] フレンドリスト抽出開始 - ワールド: {CurrentWorldName}, タイムスタンプ: {worldChangeTime}");
-            
-            // OnPlayerLeftイベントを検出
-            DetectPlayerLeaveEvents(currentInstanceLog);
-            
-            // OnPlayerJoinedイベントを検出
-            DetectPlayerJoinEvents(currentInstanceLog);
-            
-            // リモートプレイヤー初期化情報を検出
-            DetectRemotePlayers(currentInstanceLog);
-            
-            // アバター関連ログからプレイヤーを検出
-            DetectAvatarBasedPlayers(currentInstanceLog);
-            
-            // 自分自身をリストから除外
-            if (!string.IsNullOrEmpty(Username) && _activePlayers.Contains(Username))
-            {
-                _activePlayers.Remove(Username);
-                Console.WriteLine($"[DEBUG] 自分自身をリストから除外: {Username}");
-            }
-            
-            // フレンドリストの更新
-            UpdateFriendsList();
+            string instanceLog = ExtractCurrentInstanceLog(logContent, worldChangeTime);
+            CurrentFriends = _userDetector.DetectRemoteUsers(instanceLog, worldChangeTime);
         }
-        
-        /// <summary>
-        /// プレイヤー離脱イベントを検出する
-        /// </summary>
-        private void DetectPlayerLeaveEvents(string logContent)
-        {
-            // OnPlayerLeft イベントを検出
-            var leavePattern = new Regex(@"\[(\d{4}.\d{2}.\d{2} \d{2}:\d{2}:\d{2}).*?\] \[Behaviour\] OnPlayerLeft (.*?)(?:\s\(|$)");
-            var leaveMatches = leavePattern.Matches(logContent);
-            
-            Console.WriteLine($"[DEBUG] プレイヤー離脱イベント検索開始 - 検出数: {leaveMatches.Count}");
-            
-            foreach (Match match in leaveMatches)
-            {
-                if (match.Success && match.Groups.Count > 2)
-                {
-                    string timeString = match.Groups[1].Value;
-                    string playerName = match.Groups[2].Value.Trim();
-                    
-                    if (!string.IsNullOrEmpty(playerName) && DateTime.TryParse(timeString, out DateTime leaveTime))
-                    {
-                        // 現在のルーム参加後に発生した離脱のみを処理
-                        if (leaveTime > _lastRoomJoinTime)
-                        {
-                            // プレイヤーがリストに含まれている場合は削除
-                            if (_activePlayers.Contains(playerName))
-                            {
-                                _activePlayers.Remove(playerName);
-                                Console.WriteLine($"[DEBUG] プレイヤー離脱: {playerName} - 時刻: {timeString}");
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        
-        /// <summary>
-        /// プレイヤー参加イベントを検出する
-        /// </summary>
-        private void DetectPlayerJoinEvents(string logContent)
-        {
-            // OnPlayerJoined イベントを検出
-            var joinPattern = new Regex(@"\[(\d{4}.\d{2}.\d{2} \d{2}:\d{2}:\d{2}).*?\] \[Behaviour\] OnPlayerJoin(?:ed|Complete) \((.*?)\)");
-            var joinMatches = joinPattern.Matches(logContent);
-            
-            Console.WriteLine($"[DEBUG] プレイヤー参加イベント検索開始 - 検出数: {joinMatches.Count}");
-            
-            foreach (Match match in joinMatches)
-            {
-                if (match.Success && match.Groups.Count > 2)
-                {
-                    string timeString = match.Groups[1].Value;
-                    string playerName = match.Groups[2].Value.Trim();
-                    
-                    if (!string.IsNullOrEmpty(playerName) && DateTime.TryParse(timeString, out DateTime joinTime))
-                    {
-                        // 現在のルーム参加後に参加したプレイヤーのみを追加
-                        if (joinTime > _lastRoomJoinTime)
-                        {
-                            _activePlayers.Add(playerName);
-                            Console.WriteLine($"[DEBUG] プレイヤー参加: {playerName} - 時刻: {timeString}");
-                        }
-                    }
-                }
-            }
-        }
-        
-        /// <summary>
-        /// リモートプレイヤー初期化情報を検出する
-        /// </summary>
-        private void DetectRemotePlayers(string logContent)
-        {
-            // リモートプレイヤー初期化情報を検出
-            var remotePattern = new Regex(@"\[(\d{4}.\d{2}.\d{2} \d{2}:\d{2}:\d{2}).*?\] \[Behaviour\] Initialized PlayerAPI ""(.*?)"" is remote");
-            var remoteMatches = remotePattern.Matches(logContent);
-            
-            Console.WriteLine($"[DEBUG] リモートプレイヤー初期化検索開始 - 検出数: {remoteMatches.Count}");
-            
-            foreach (Match match in remoteMatches)
-            {
-                if (match.Success && match.Groups.Count > 2)
-                {
-                    string timeString = match.Groups[1].Value;
-                    string playerName = match.Groups[2].Value.Trim();
-                    
-                    if (!string.IsNullOrEmpty(playerName) && DateTime.TryParse(timeString, out DateTime initTime))
-                    {
-                        // 現在のルーム参加後に初期化されたリモートプレイヤーのみを追加
-                        if (initTime > _lastRoomJoinTime)
-                        {
-                            _activePlayers.Add(playerName);
-                            Console.WriteLine($"[DEBUG] リモートプレイヤー初期化: {playerName} - 時刻: {timeString}");
-                        }
-                    }
-                }
-            }
-        }
-        
-        /// <summary>
-        /// アバター関連のログからプレイヤーを検出する
-        /// </summary>
-        private void DetectAvatarBasedPlayers(string logContent)
-        {
-            // アバターログからプレイヤーを検出
-            var avatarPatterns = new[]
-            {
-                new Regex(@"\[(\d{4}.\d{2}.\d{2} \d{2}:\d{2}:\d{2}).*?\] Spawning avatar for (.*?) at"),
-                new Regex(@"\[(\d{4}.\d{2}.\d{2} \d{2}:\d{2}:\d{2}).*?\] Loading avatar for (.*?)[\s:\(]")
-            };
-            
-            foreach (var pattern in avatarPatterns)
-            {
-                var avatarMatches = pattern.Matches(logContent);
-                Console.WriteLine($"[DEBUG] アバター関連ログ検索 - 検出数: {avatarMatches.Count}");
-                
-                foreach (Match match in avatarMatches)
-                {
-                    if (match.Success && match.Groups.Count > 2)
-                    {
-                        string timeString = match.Groups[1].Value;
-                        string playerName = match.Groups[2].Value.Trim();
-                        
-                        if (!string.IsNullOrEmpty(playerName) && DateTime.TryParse(timeString, out DateTime avatarTime))
-                        {
-                            // 現在のルーム参加後のアバターログのみ処理
-                            if (avatarTime > _lastRoomJoinTime)
-                            {
-                                _activePlayers.Add(playerName);
-                                Console.WriteLine($"[DEBUG] アバター関連検出: {playerName} - 時刻: {timeString}");
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        
-        /// <summary>
-        /// 検出したプレイヤー情報からフレンドリストを更新する
-        /// </summary>
-        private void UpdateFriendsList()
-        {
-            // 活動中のプレイヤーリストをフレンドリストに反映
-            if (_activePlayers.Count == 0)
-            {
-                // 誰もいない場合は特別メッセージ
-                CurrentFriends = new List<string> { "ボッチ(だれもいません)" };
-                Console.WriteLine("[DEBUG] 部屋に自分以外誰もいません - ボッチメッセージを設定");
-            }
-            else
-            {
-                // 新しいリストで上書き
-                CurrentFriends = _activePlayers.ToList();
-            }
-            
-            // デバッグ: フレンド検出のログ出力
-            Console.WriteLine($"[DEBUG] フレンド検出結果: {CurrentFriends.Count}人 - {string.Join(", ", CurrentFriends)}");
-        }
-        
+
         /// <summary>
         /// 現在のインスタンスに関連するログのみを抽出する
         /// </summary>
@@ -664,31 +473,18 @@ namespace VSA_launcher
         /// </summary>
         private void ExtractUsername(string logContent)
         {
-            var usernameMatch = _usernamePattern.Match(logContent);
-            if (usernameMatch.Success && usernameMatch.Groups.Count > 1)
-            {
-                string username = usernameMatch.Groups[1].Value.Trim();
-                
-                // ユーザー名が空でない場合のみ更新
-                if (!string.IsNullOrEmpty(username))
-                {
-                    Username = username;
-                    Console.WriteLine($"[DEBUG] 自分のユーザー名を検出: {username}");
-                }
-            }
-            else
-            {
-                Console.WriteLine("[DEBUG] 自分のユーザー名を検出できませんでした");
-            }
+            Username = _userDetector.DetectLocalUser(logContent);
         }
 
         /// <summary>
-        /// フレンドリストを指定の区切り文字で結合した文字列を取得
+        /// フレンドリストを指定の区切り文字で結合した文字列を取得（改良版）
         /// </summary>
-        /// <param name="separator">区切り文字（デフォルトはドット）</param>
-        /// <returns>区切られたフレンド名リスト</returns>
         public string GetFriendsString(string separator = ".")
         {
+            if (CurrentFriends == null || CurrentFriends.Count == 0)
+            {
+                return "ボッチ(だれもいません)";
+            }
             return string.Join(separator, CurrentFriends);
         }
         
@@ -709,10 +505,10 @@ namespace VSA_launcher
                 { "WorldID", CurrentWorldId },
                 
                 // フレンド情報（.区切り）
-                { "Friends", GetFriendsString() },
+                { "Usernames", GetFriendsString() },
                 
                 // 撮影者情報
-                { "Username", Username },
+                { "User", Username }, // 'Username'を'User'に変更
                 
                 // 撮影日時
                 { "CaptureTime", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") }
@@ -778,6 +574,31 @@ namespace VSA_launcher
             {
                 Console.WriteLine("[DEBUG] アプリ起動初期化: ログ解析失敗");
             }
+        }
+
+        /// <summary>
+        /// ユーザー名比較のための拡張メソッドを追加
+        /// </summary>
+        private bool UsernameEquals(string name1, string name2)
+        {
+            if (string.IsNullOrEmpty(name1) || string.IsNullOrEmpty(name2))
+            {
+                Console.WriteLine($"[DEBUG] ユーザー名比較: 空の名前があります name1=「{name1}」, name2=「{name2}」");
+                return false;
+            }
+            
+            bool result = string.Equals(name1.Trim(), name2.Trim(), StringComparison.OrdinalIgnoreCase);
+            Console.WriteLine($"[DEBUG] ユーザー名比較: 「{name1}」 vs 「{name2}」 結果={result}");
+            return result;
+        }
+
+        /// <summary>
+        /// ローカルユーザーかどうかを判定
+        /// </summary>
+        private bool IsLocalUser(string playerName)
+        {
+            // 大文字小文字を区別するように変更
+            return string.Equals(playerName.Trim(), Username.Trim(), StringComparison.Ordinal);
         }
     }
     

@@ -465,6 +465,10 @@ namespace VSA_launcher
                     // 最新のログ情報を取得
                     _logParser.ParseLatestLog();
                     
+                    // ログパーサーから取得できた内容を確認（デバッグ用）
+                    Console.WriteLine($"[DEBUG] ProcessFile: ワールド名={_logParser.CurrentWorldName}, フレンド数={_logParser.CurrentFriends.Count}");
+                    Console.WriteLine($"[DEBUG] ProcessFile: フレンドリスト={string.Join(", ", _logParser.CurrentFriends)}");
+                    
                     // メタデータの生成
                     var metadata = new Dictionary<string, string>
                     {
@@ -476,14 +480,17 @@ namespace VSA_launcher
                         { "WorldID", _logParser.CurrentWorldId ?? "Unknown" },
                         
                         // フレンド情報（.区切り）
-                        { "Friends", string.Join(".", _logParser.CurrentFriends) },
+                        { "Usernames", string.Join(".", _logParser.CurrentFriends) },
                         
                         // 撮影者情報
-                        { "Username", _logParser.Username ?? "Unknown User" },
+                        { "User", _logParser.Username ?? "Unknown User" },
                         
                         // 撮影日時
                         { "CaptureTime", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") }
                     };
+                    
+                    // メタデータ内容の確認（デバッグ用）
+                    Console.WriteLine($"[DEBUG] 追加メタデータ: {string.Join(", ", metadata.Select(kv => $"{kv.Key}={kv.Value}"))}");
                     
                     // PngMetadataManagerを使用してメタデータを追加
                     bool success = PngMetadataManager.AddMetadataToPng(sourceFilePath, destinationPath, metadata);
@@ -493,6 +500,16 @@ namespace VSA_launcher
                         // メタデータ追加に失敗した場合は通常のコピー
                         File.Copy(sourceFilePath, destinationPath, true);
                         RaiseStatusChanged($"メタデータ追加失敗: {Path.GetFileName(sourceFilePath)}");
+                    }
+                    else
+                    {
+                        // 成功時、実際に書き込まれたメタデータを確認（デバッグ用）
+                        try
+                        {
+                            var savedMetadata = PngMetadataManager.ReadMetadata(destinationPath);
+                            Console.WriteLine($"[DEBUG] 保存されたメタデータ: {string.Join(", ", savedMetadata.Select(kv => $"{kv.Key}={kv.Value}"))}");
+                        }
+                        catch { /* 読み取りエラーは無視 */ }
                     }
                 }
                 else
