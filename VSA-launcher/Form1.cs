@@ -352,14 +352,155 @@ namespace VSA_launcher
         // publicに変更してSystemTrayIconからアクセスできるようにする
         public void LaunchMainApplication()
         {
-            MessageBox.Show(
-                "現在メインアプリは開発中です。完成をお待ちください。\n\n" +
-                "最新情報は下記のURLからご確認ください：\n" +
-                "Booth: https://fefaether-vrc.booth.pm/\n" +
-                "Twitter(X): https://x.com/fefaethervrc",
-                "お知らせ",
-                MessageBoxButtons.OK,
-                MessageBoxIcon.Information);
+            try
+            {
+                // メインアプリが既に実行中かどうかを確認
+                if (IsMainAppRunning())
+                {
+                    MessageBox.Show(
+                        "メインアプリは既に実行中です。",
+                        "情報",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Information);
+                    return;
+                }
+
+                // フロントエンドのパスを探す - 複数の候補から探す
+                string[] potentialFrontendPaths = new string[]
+                {
+                    // 開発パス
+                    @"d:\programmstage\VSA\frontend",
+                    
+                    // 実行ファイルと同じディレクトリの隣の「frontend」ディレクトリ
+                    Path.Combine(Path.GetDirectoryName(Application.ExecutablePath), "frontend"),
+                    
+                    // 実行ファイルの親ディレクトリの「frontend」ディレクトリ
+                    Path.Combine(Path.GetDirectoryName(Application.ExecutablePath), "..", "frontend")
+                };
+
+                string frontendPath = null;
+                foreach (string path in potentialFrontendPaths)
+                {
+                    if (Directory.Exists(path))
+                    {
+                        frontendPath = path;
+                        break;
+                    }
+                }
+
+                if (frontendPath == null)
+                {
+                    MessageBox.Show(
+                        "メインアプリケーションフォルダが見つかりません。\n以下のパスを確認しました:\n" + 
+                        string.Join("\n", potentialFrontendPaths),
+                        "エラー",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Error);
+                    return;
+                }
+
+                // Electronアプリの直接起動方法（複数の候補から探す）
+                string[] electronPaths = new string[]
+                {
+                    // node_modulesディレクトリからElectronを探す
+                    Path.Combine(frontendPath, "node_modules", "electron", "dist", "electron.exe"),
+                    
+                    // node_modulesディレクトリから.binフォルダを探す
+                    Path.Combine(frontendPath, "node_modules", ".bin", "electron.cmd"),
+                    
+                    // グローバルインストールしたElectron
+                    @"C:\Program Files\nodejs\electron.exe"
+                };
+
+                string electronPath = null;
+                foreach (string path in electronPaths)
+                {
+                    if (File.Exists(path))
+                    {
+                        electronPath = path;
+                        break;
+                    }
+                }
+
+                // main.jsファイルのパス
+                string mainJsPath = Path.Combine(frontendPath, "electron", "main.js");
+                
+                // main.jsファイルが存在するか確認
+                if (!File.Exists(mainJsPath))
+                {
+                    MessageBox.Show(
+                        $"メインJSファイルが見つかりません: {mainJsPath}",
+                        "エラー",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Error);
+                    return;
+                }
+
+                ProcessStartInfo startInfo;
+                
+                if (electronPath != null)
+                {
+                    // Electronが直接実行可能な場合、Electronを使用してmain.jsを起動
+                    startInfo = new ProcessStartInfo
+                    {
+                        FileName = electronPath,
+                        Arguments = $"\"{mainJsPath}\"",
+                        WorkingDirectory = frontendPath,
+                        UseShellExecute = true, // Windowsシェル経由で起動 (コンソールを表示するために変更)
+                        CreateNoWindow = false  // コンソールウィンドウを表示する (デバッグ中は表示)
+                    };
+                }
+                else
+                {
+                    // node.jsを使用してmain.jsを直接実行
+                    string nodePath = "node.exe";
+                    
+                    startInfo = new ProcessStartInfo
+                    {
+                        FileName = nodePath,
+                        Arguments = $"\"{mainJsPath}\"",
+                        WorkingDirectory = frontendPath,
+                        UseShellExecute = true,
+                        CreateNoWindow = false
+                    };
+                }
+
+                // アプリケーションフォルダにnodeモジュールのログファイルを作成（デバッグ用）
+                string logPath = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                    "SnapArchiveKai",
+                    "electron_launch.log");
+                
+                // アプリデータディレクトリがなければ作成
+                Directory.CreateDirectory(Path.GetDirectoryName(logPath));
+                
+                // ログファイルにパス情報などを記録（デバッグ用）
+                File.WriteAllText(logPath, 
+                    $"Launch attempt: {DateTime.Now}\n" +
+                    $"Frontend path: {frontendPath}\n" +
+                    $"Electron path: {electronPath ?? "Not found"}\n" +
+                    $"Main.js path: {mainJsPath}\n" +
+                    $"Command: {startInfo.FileName} {startInfo.Arguments}\n"
+                );
+
+                // プロセスを起動
+                Process.Start(startInfo);
+
+                // 最後に起動状態を通知
+                UpdateStatusInfo("メインアプリケーション起動中...", "起動処理中です");
+                
+                // 起動ボタンの状態を更新
+                UpdateLaunchButtonState();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(
+                    $"メインアプリケーションの起動に失敗しました。\n\nエラー詳細: {ex.Message}",
+                    "エラー",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
+                UpdateStatusInfo("起動エラー", ex.Message);
+            }
         }
 
         /// <summary>

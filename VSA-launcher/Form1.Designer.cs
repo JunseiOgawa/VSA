@@ -163,7 +163,6 @@
             screenShotFile_textBox.Name = "screenShotFile_textBox";
             screenShotFile_textBox.Size = new Size(293, 23);
             screenShotFile_textBox.TabIndex = 4;
-            screenShotFile_textBox.TextChanged += screenShotFile_textBox_TextChanged;
             // 
             // screenShotFile_button
             // 
