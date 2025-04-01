@@ -11,6 +11,8 @@
 *.tsx text
 *.html text
 *.txt text
+*.py.text eol=lf
+*.ini text eol=lf
 
 # バイナリファイルを指定（そのまま）
 *.png binary

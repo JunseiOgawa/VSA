@@ -1,0 +1,20 @@
+{// TypeScriptの設定ファイル
+  "compilerOptions": {
+    "target": "es5",                                    /* JavaScriptのターゲットバージョンを指定 */
+    "lib": ["dom", "dom.iterable", "esnext"],           /* 利用可能なライブラリの指定 */
+    "allowJs": true,                                    /* JavaScriptファイルのコンパイルを許可 */
+    "skipLibCheck": true,                               /* 型定義ファイルのチェックをスキップ */
+    "esModuleInterop": true,                            /* ESモジュールの相互運用性を有効化 */
+    "allowSyntheticDefaultImports": true,              /* 合成デフォルトインポートを許可 */
+    "strict": true,                                     /* 厳格な型チェックを有効化 */
+    "forceConsistentCasingInFileNames": true,           /* ファイル名の大文字小文字を一貫性を持たせる */
+    "noFallthroughCasesInSwitch": true,                 /* switch文のフォールスルーをエラーに */
+    "module": "esnext",                                 /* 最新のES Modulesを使用 */
+    "moduleResolution": "node",                        /* モジュール解決方法をnodeに設定 */
+    "resolveJsonModule": true,                          /* JSONファイルのインポートを有効化 */
+    "isolatedModules": true,                            /* ファイルを個別にコンパイル可能に */
+    "noEmit": true,                                     /* JSファイルの出力を無効化 */
+    "jsx": "react-jsx"                                  /* React JSXのサポートを有効化 */
+  },
+  "include": ["src", "electron"]                                    /* コンパイル対象のディレクトリ */
+}

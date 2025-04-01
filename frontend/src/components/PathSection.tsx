@@ -1,17 +1,35 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Box, Typography, TextField, Button, 
-  Paper
-} 
-from '@mui/material';
-import Grid from '@mui/material/Unstable_Grid2';
+  Paper, Alert
+} from '@mui/material';
+import Grid from '@mui/material/Grid';
 import FolderIcon from '@mui/icons-material/Folder';
 
-const PathSection = ({ settings, onSettingsChange }) => {
-  const [screenshotPath, setScreenshotPath] = useState(settings.screenshotPath || '');
-  const [outputPath, setOutputPath] = useState(settings.outputPath || '');
+// 型定義
+interface PathSectionProps {
+  settings: {
+    screenshotPath: string;
+    outputPath: string;
+    [key: string]: any;
+  };
+  onSettingsChange: (newSettings: any) => void;
+}
 
-  const handleScreenshotPathChange = (e) => {//スクリーンショット先変更のハンドラ
+const PathSection: React.FC<PathSectionProps> = ({ settings, onSettingsChange }) => {
+  // ローカル状態
+  const [screenshotPath, setScreenshotPath] = useState<string>(settings.screenshotPath || '');
+  const [outputPath, setOutputPath] = useState<string>(settings.outputPath || '');
+  const [error, setError] = useState<string | null>(null);
+
+  // 設定が変更されたら内部の状態も更新
+  useEffect(() => {
+    setScreenshotPath(settings.screenshotPath || '');
+    setOutputPath(settings.outputPath || '');
+  }, [settings]);
+
+  // スクリーンショットパス変更ハンドラ
+  const handleScreenshotPathChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setScreenshotPath(e.target.value);
     onSettingsChange({
       ...settings,
@@ -19,7 +37,8 @@ const PathSection = ({ settings, onSettingsChange }) => {
     });
   };
 
-  const handleOutputPathChange = (e) => {
+  // 出力パス変更ハンドラ
+  const handleOutputPathChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setOutputPath(e.target.value);
     onSettingsChange({
       ...settings,
@@ -27,10 +46,21 @@ const PathSection = ({ settings, onSettingsChange }) => {
     });
   };
 
-  const browseFolder = async (pathType) => {
+  // フォルダ選択ダイアログハンドラ
+  const browseFolder = async (pathType: 'screenshot' | 'output') => {
     try {
-      // Electronのダイアログを呼び出す
-      const result = await window.electronAPI.callApi('browseFolder', 'GET');
+      setError(null);
+      
+      // window.electronAPIの存在チェック
+      if (!window.electronAPI) {
+        console.error('electronAPI is not available');
+        setError('Electron APIにアクセスできません');
+        return;
+      }
+      
+      // Electron APIを使用してフォルダ選択ダイアログを表示
+      const result = await window.electronAPI.browseFolder();
+      
       if (result.success && result.data.filePaths?.length > 0) {
         const selectedPath = result.data.filePaths[0];
         
@@ -50,6 +80,7 @@ const PathSection = ({ settings, onSettingsChange }) => {
       }
     } catch (error) {
       console.error('フォルダ選択エラー:', error);
+      setError('フォルダの選択中にエラーが発生しました');
     }
   };
 
@@ -59,8 +90,10 @@ const PathSection = ({ settings, onSettingsChange }) => {
         パス設定
       </Typography>
       
+      {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+      
       <Grid container spacing={2}>
-        <Grid item xs={12}>
+        <Grid xs={12}>
           <Box display="flex" alignItems="center">
             <TextField
               label="スクリーンショットフォルダ"
@@ -69,6 +102,7 @@ const PathSection = ({ settings, onSettingsChange }) => {
               value={screenshotPath}
               onChange={handleScreenshotPathChange}
               margin="normal"
+              helperText="VRChatのスクリーンショットが保存されているフォルダを選択してください"
             />
             <Button 
               variant="contained"
@@ -81,7 +115,7 @@ const PathSection = ({ settings, onSettingsChange }) => {
           </Box>
         </Grid>
         
-        <Grid item xs={12}>
+        <Grid xs={12}>
           <Box display="flex" alignItems="center">
             <TextField
               label="出力先フォルダ"
@@ -90,6 +124,7 @@ const PathSection = ({ settings, onSettingsChange }) => {
               value={outputPath}
               onChange={handleOutputPathChange}
               margin="normal"
+              helperText="整理されたスクリーンショットの保存先フォルダを選択してください"
             />
             <Button 
               variant="contained"
