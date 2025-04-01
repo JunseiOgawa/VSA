@@ -35,7 +35,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
       nodeVersion: process.versions.node,
     };
   },
-  
+    
   // アプリケーションイベント
   onStatusUpdate: (callback: (data: any) => void) => {
     ipcRenderer.on('status-update', (_, data) => callback(data));

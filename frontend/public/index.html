@@ -12,9 +12,13 @@
     <title>VRC Snap Archive Kai</title>
   </head>
   <body>
+    <noscript>JavaScriptを有効にしてください</noscript>
     <div id="root">
       <!-- ここにReactアプリがマウントされます -->
-      <!-- 必要に応じて以前のコンテンツをここに移動できます -->
+      <!-- Reactアプリが読み込まれるまでの間、ローディング表示を追加 -->
+      <div style="display: flex; justify-content: center; align-items: center; height: 100vh; flex-direction: column;">
+        <p>読み込み中...</p>
+      </div>
     </div>
   </body>
 </html>
