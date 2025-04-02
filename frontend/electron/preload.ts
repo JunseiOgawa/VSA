@@ -44,6 +44,16 @@ contextBridge.exposeInMainWorld('electronAPI', {
     return () => {
       ipcRenderer.removeAllListeners('status-update');
     };
+  },
+  
+  // テーマ設定を取得
+  getThemePreference: () => {
+    return ipcRenderer.invoke('get-theme-preference');
+  },
+  
+  // テーマ設定を保存
+  setThemePreference: (theme: 'light' | 'dark') => {
+    return ipcRenderer.invoke('set-theme-preference', theme);
   }
 });
 

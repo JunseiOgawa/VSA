@@ -1,121 +1,185 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { 
-  Container, 
   CssBaseline, 
-  ThemeProvider, 
+  ThemeProvider as MuiThemeProvider, 
   createTheme,
   Typography,
   Box,
-  Paper,
-  Button,
-  CircularProgress
+  CircularProgress,
+  AppBar,
+  Toolbar,
+  Container
 } from '@mui/material';
-import PathSection from './components/PathSection';
+import SideMenu from './components/SideMenu';
+import Home from './components/home/Home';
+import Photos from './components/Photos';
+import Albums from './components/Albums';
+import Compress from './components/Compress';
+import AdvancedSearch from './components/AdvancedSearch';
+import { useTheme } from './contexts/ThemeContext';
 import './App.css';
 
-// アプリケーションの設定インターフェース
-interface AppSettings {
-  screenshotPath: string;
-  outputPath: string;
-  // 他の設定が必要になったら追加
-}
+function App() {
+  // カスタムテーマコンテキストからテーマモードを取得
+  const { mode } = useTheme();
+  
+  // アプリケーションの状態
+  const [loading, setLoading] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
+  
+  // メニュー関連の状態
+  const [menuOpen, setMenuOpen] = useState<boolean>(false);
+  const [selectedMenu, setSelectedMenu] = useState<string>('home'); // デフォルトをhomeに変更
 
-// ダークモード/ライトモード対応のテーマ
-const theme = createTheme({
-  palette: {
-    mode: 'dark',
+  // テーマの色設定
+  const lightTheme = {
+    primary: {
+      main: '#1976d2',
+    },
+    secondary: {
+      main: '#dc004e',
+    },
+    background: {
+      default: '#f5f5f5',
+      paper: '#ffffff',
+    },
+    text: {
+      primary: '#333333',
+      secondary: '#666666',
+    },
+  };
+
+  const darkTheme = {
     primary: {
       main: '#90caf9',
     },
     secondary: {
       main: '#f48fb1',
     },
-  },
-});
-
-function App() {
-  // アプリケーションの状態
-  const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
-  const [settings, setSettings] = useState<AppSettings>({
-    screenshotPath: '',
-    outputPath: ''
-  });
-
-  // 設定変更ハンドラー
-  const handleSettingsChange = (newSettings: AppSettings) => {
-    setSettings(newSettings);
-    // 必要に応じて設定を保存するコードをここに追加
+    background: {
+      default: '#121212',
+      paper: '#1e1e1e',
+    },
+    text: {
+      primary: '#ffffff',
+      secondary: '#bbbbbb',
+    },
   };
 
-  // 初期設定の読み込み
-  useEffect(() => {
-    // 仮の非同期読み込み処理
-    const loadSettings = async () => {
-      try {
-        // 実際の実装では、保存された設定を読み込む
-        // 例: const result = await window.electronAPI.callApi('settings', 'GET');
-        setLoading(false);
-      } catch (err) {
-        setError('設定の読み込みに失敗しました');
-        setLoading(false);
-      }
-    };
+  // モードに応じたテーマを作成
+  const theme = createTheme({
+    palette: {
+      mode: mode,
+      ...(mode === 'light' ? lightTheme : darkTheme),
+    },
+  });
 
-    loadSettings();
-  }, []);
+  // メニュー選択ハンドラー
+  const handleMenuSelect = (menuId: string) => {
+    setSelectedMenu(menuId);
+  };
+
+  // メニューの開閉を制御
+  const handleMenuOpenChange = (isOpen: boolean) => {
+    setMenuOpen(isOpen);
+  };
 
   // 読み込み中の表示
   if (loading) {
     return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
-        <CircularProgress />
-      </Box>
+      <MuiThemeProvider theme={theme}>
+        <CssBaseline />
+        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+          <CircularProgress />
+        </Box>
+      </MuiThemeProvider>
     );
   }
 
   // エラー表示
   if (error) {
     return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
-        <Typography color="error">{error}</Typography>
-      </Box>
+      <MuiThemeProvider theme={theme}>
+        <CssBaseline />
+        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+          <Typography color="error">{error}</Typography>
+        </Box>
+      </MuiThemeProvider>
     );
   }
 
+  // 選択されたメニューに応じたコンテンツを表示する関数
+  const renderContent = () => {
+    switch (selectedMenu) {
+      case 'home':
+        return <Home />;
+      case 'photos':
+        return <Photos />;
+      case 'albums':
+        return <Albums />;
+      case 'compress':
+        return <Compress />;
+      case 'advanced-search':
+        return <AdvancedSearch />;
+      default:
+        return <Home />;
+    }
+  };
+
   return (
-    <ThemeProvider theme={theme}>
+    <MuiThemeProvider theme={theme}>
       <CssBaseline />
-      <Container maxWidth="md" sx={{ pt: 4, pb: 4 }}>
-        <Typography variant="h4" component="h1" gutterBottom>
-          VRC Snap Archive
-        </Typography>
+      <Box sx={{ display: 'flex' }}>
+        {/* 左側メニュー */}
+        <SideMenu 
+          open={menuOpen} 
+          onSelectMenu={handleMenuSelect} 
+          selectedMenu={selectedMenu}
+          onOpenChange={handleMenuOpenChange}
+        />
         
-        <Paper elevation={3} sx={{ p: 3, mb: 3 }}>
-          <Typography variant="h5" gutterBottom>
-            スクリーンショット管理
-          </Typography>
+        {/* メインコンテンツ */}
+        <Box
+          component="main"
+          sx={{
+            flexGrow: 1,
+            p: 3,
+            width: { sm: `calc(100% - ${menuOpen ? 240 : 8}px)` },
+            ml: { sm: menuOpen ? '240px' : '8px' },
+            transition: theme => theme.transitions.create(['margin', 'width'], {
+              easing: theme.transitions.easing.sharp,
+              duration: theme.transitions.duration.leavingScreen,
+            }),
+          }}
+        >
+          <AppBar 
+            position="static" 
+            color="transparent" 
+            elevation={0}
+            sx={{ 
+              borderBottom: 1, 
+              borderColor: 'divider',
+              backgroundColor: mode === 'light' ? 'rgba(255, 255, 255, 0.7)' : 'rgba(0, 0, 0, 0.2)'
+            }}
+          >
+            <Toolbar>
+              <Typography variant="h4" component="h1">
+                VRC Snap Archive
+              </Typography>
+            </Toolbar>
+          </AppBar>
           
-          {/* パス設定セクション */}
-          <PathSection 
-            settings={settings} 
-            onSettingsChange={handleSettingsChange} 
-          />
-          
-          {/* 実際のアプリケーションではここに他のUIコンポーネントを追加 */}
-          
-          <Box sx={{ mt: 3, display: 'flex', justifyContent: 'flex-end' }}>
-            <Button variant="contained" color="primary">
-              スキャン開始
-            </Button>
-          </Box>
-        </Paper>
-        
-        <Typography variant="body2" color="textSecondary" align="center">
-          VRC Snap Archive © 2023
-        </Typography>
-      </Container>
-    </ThemeProvider>
+          {/* 選択されたメニューに基づくコンテンツ */}
+          <Container maxWidth="lg" sx={{ mt: 4 }}>
+            {renderContent()}
+            
+            <Typography variant="body2" color="textSecondary" align="center" sx={{ mt: 4 }}>
+              VRC Snap Archive © 2023
+            </Typography>
+          </Container>
+        </Box>
+      </Box>
+    </MuiThemeProvider>
   );
 }
 

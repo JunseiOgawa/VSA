@@ -1,3 +1,125 @@
+body {
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden;
+}
+
+/* テーマ切替時のスムーズなトランジション */
+body, #root, .MuiPaper-root, .MuiAppBar-root {
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+.hover-trigger {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 10px;
+  height: 100vh;
+  z-index: 1000;
+}
+
+.app-container {
+  display: flex;
+  min-height: 100vh;
+}
+
+.menu-transition {
+  transition: all 0.3s ease;
+}
+
+/* アニメーション効果 */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.fade-in {
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+/* スクロールバーのカスタマイズ */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.1);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(144, 202, 249, 0.5);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(144, 202, 249, 0.8);
+}
+
+/* ライトモード時のスクロールバー調整 */
+[data-theme='light'] ::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+[data-theme='light'] ::-webkit-scrollbar-thumb {
+  background: rgba(25, 118, 210, 0.5);
+}
+
+[data-theme='light'] ::-webkit-scrollbar-thumb:hover {
+  background: rgba(25, 118, 210, 0.8);
+}
+
+/* サイドバースタイル追加 */
+.slim-sidebar {
+  width: 8px;
+  background-color: rgba(144, 202, 249, 0.5);
+  position: fixed;
+  left: 0;
+  top: 0;
+  height: 100vh;
+  z-index: 1100;
+  transition: width 0.3s ease;
+}
+
+.slim-sidebar:hover {
+  width: 240px;
+  background-color: #121212;
+}
+
+/* ライトモード時のサイドバー調整 */
+[data-theme='light'] .slim-sidebar {
+  background-color: rgba(25, 118, 210, 0.5);
+}
+
+[data-theme='light'] .slim-sidebar:hover {
+  background-color: #f5f5f5;
+}
+
+/* メインコンテンツ移動時の動き */
+.content-shift {
+  transition: margin-left 0.3s ease, width 0.3s ease;
+}
+
+/* メニュー項目のフェードイン効果 */
+.menu-item-enter {
+  opacity: 0;
+}
+.menu-item-enter-active {
+  opacity: 1;
+  transition: opacity 300ms;
+}
+.menu-item-exit {
+  opacity: 1;
+}
+.menu-item-exit-active {
+  opacity: 0;
+  transition: opacity 300ms;
+}
+
+/* その他の既存スタイル */
 .App {
   text-align: center;
 }

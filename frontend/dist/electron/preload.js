@@ -27,6 +27,14 @@ electron_1.contextBridge.exposeInMainWorld('electronAPI', {
         return () => {
             electron_1.ipcRenderer.removeAllListeners('status-update');
         };
+    },
+    // テーマ設定を取得
+    getThemePreference: () => {
+        return electron_1.ipcRenderer.invoke('get-theme-preference');
+    },
+    // テーマ設定を保存
+    setThemePreference: (theme) => {
+        return electron_1.ipcRenderer.invoke('set-theme-preference', theme);
     }
 });
 // 読み込み完了メッセージ

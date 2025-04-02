@@ -19,8 +19,9 @@ function createWindow() {
     width: 800,
     height: 600,
     webPreferences: {
-      nodeIntegration: true,
-      contextIsolation: false
+      nodeIntegration: false,
+      contextIsolation: true,
+      preload: path.join(__dirname, 'dist/electron/preload.js')
     }
   });
 
@@ -34,24 +35,55 @@ function createWindow() {
           body { font-family: Arial, sans-serif; padding: 20px; }
           h1 { color: #4285f4; }
           pre { background: #f5f5f5; padding: 10px; border-radius: 4px; }
+          button { padding: 8px 16px; background: #4285f4; color: white; border: none; border-radius: 4px; cursor: pointer; }
         </style>
       </head>
       <body>
         <h1>Electronテスト - 起動成功！</h1>
         <p>VRC Snap Archive Kai テスト画面です。</p>
-        <p>起動パラメータ: ${JSON.stringify(launchParams)}</p>
+        <p>起動パラメータ: <span id="params"></span></p>
         <p>環境情報:</p>
-        <pre>
-Electronバージョン: ${process.versions.electron}
-Chromeバージョン: ${process.versions.chrome}
-Nodeバージョン: ${process.versions.node}
-プラットフォーム: ${process.platform}
-アーキテクチャ: ${process.arch}
-実行パス: ${app.getAppPath()}
-作業ディレクトリ: ${process.cwd()}
-        </pre>
+        <pre id="env-info"></pre>
+        <button id="folder-btn">フォルダ選択テスト</button>
+        <div id="folder-result" style="margin-top: 10px;"></div>
         <button id="close">アプリを閉じる</button>
         <script>
+          // パラメータの表示
+          document.getElementById('params').textContent = ${JSON.stringify(JSON.stringify(launchParams))};
+          
+          // 環境情報の表示
+          if (window.electronAPI) {
+            const appInfo = window.electronAPI.getAppInfo();
+            document.getElementById('env-info').textContent = 
+              \`Electronバージョン: \${appInfo.electronVersion}
+Chromeバージョン: \${appInfo.chromeVersion}
+Nodeバージョン: \${appInfo.nodeVersion}
+プラットフォーム: \${navigator.platform}
+アーキテクチャ: ${process.arch}
+実行パス: ${app.getAppPath()}
+作業ディレクトリ: ${process.cwd()}\`;
+          } else {
+            document.getElementById('env-info').textContent = 'electronAPIが見つかりません。preloadスクリプトが正しく読み込まれていない可能性があります。';
+          }
+          
+          // フォルダ選択テスト
+          document.getElementById('folder-btn').addEventListener('click', async () => {
+            if (window.electronAPI) {
+              try {
+                const result = await window.electronAPI.browseFolder();
+                document.getElementById('folder-result').textContent = 
+                  '結果: ' + JSON.stringify(result, null, 2);
+              } catch (err) {
+                document.getElementById('folder-result').textContent = 
+                  'エラー: ' + err.message;
+              }
+            } else {
+              document.getElementById('folder-result').textContent = 
+                'electronAPIが利用できません';
+            }
+          });
+          
+          // アプリ終了
           document.getElementById('close').addEventListener('click', () => {
             window.close();
           });
@@ -70,7 +102,17 @@ Nodeバージョン: ${process.versions.node}
 }
 
 // アプリの準備完了時にウィンドウ作成
-app.whenReady().then(createWindow);
+app.whenReady().then(() => {
+  // preloadスクリプトがビルドされていることを確認
+  const preloadPath = path.join(__dirname, 'dist/electron/preload.js');
+  if (!fs.existsSync(preloadPath)) {
+    console.error('Preload script not found at:', preloadPath);
+    console.error('Please run "npm run build-electron" first');
+  } else {
+    console.log('Found preload script at:', preloadPath);
+    createWindow();
+  }
+});
 
 // すべてのウィンドウが閉じられたときの処理
 app.on('window-all-closed', function() {

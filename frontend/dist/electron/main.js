@@ -42,12 +42,37 @@ const showFolderDialog = async () => {
         return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
     }
 };
+// APIリクエストを処理する関数
+const handleApiCall = async (request) => {
+    try {
+        console.log('API呼び出し:', request);
+        // ここに実際のAPI実装を追加
+        // 今はダミーレスポンスを返す
+        return {
+            success: true,
+            data: {
+                message: 'API呼び出し成功',
+                requestData: request
+            }
+        };
+    }
+    catch (error) {
+        console.error('API呼び出しエラー:', error);
+        return {
+            success: false,
+            error: error instanceof Error ? error.message : 'Unknown error'
+        };
+    }
+};
 // メインウィンドウ作成関数
 function createWindow() {
     // ウィンドウサイズとオプションを設定
     mainWindow = new electron_1.BrowserWindow({
         width: 1000,
         height: 800,
+        minHeight: 400,
+        minWidth: 600,
+        title: 'エーテル製 VRC Snap Archive',
         webPreferences: {
             nodeIntegration: false,
             contextIsolation: true,
@@ -87,8 +112,53 @@ electron_1.ipcMain.handle('reload-css', () => {
     }
     return { success: false };
 });
+// APIハンドラー登録
+electron_1.ipcMain.handle('call-api', (_, request) => handleApiCall(request));
 // フォルダ選択ダイアログハンドラー
 electron_1.ipcMain.handle('browseFolder', showFolderDialog);
+// テーマ設定を取得するハンドラー
+electron_1.ipcMain.handle('get-theme-preference', async () => {
+    try {
+        // ユーザーデータディレクトリからテーマ設定を読み込む
+        const userDataPath = electron_1.app.getPath('userData');
+        const settingsPath = path.join(userDataPath, 'settings.json');
+        // 設定ファイルが存在するか確認
+        if (fs.existsSync(settingsPath)) {
+            const settings = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
+            if (settings.themeMode && (settings.themeMode === 'light' || settings.themeMode === 'dark')) {
+                return settings.themeMode;
+            }
+        }
+        // デフォルト設定（ないか不正な値の場合はダークモード）
+        return 'dark';
+    }
+    catch (error) {
+        console.error('テーマ設定の読み込みエラー:', error);
+        return 'dark'; // エラー時はダークモード
+    }
+});
+// テーマ設定を保存するハンドラー
+electron_1.ipcMain.handle('set-theme-preference', async (_, theme) => {
+    try {
+        // ユーザーデータディレクトリに設定を保存
+        const userDataPath = electron_1.app.getPath('userData');
+        const settingsPath = path.join(userDataPath, 'settings.json');
+        // 既存の設定を読み込むか、新しい設定オブジェクトを作成
+        let settings = {};
+        if (fs.existsSync(settingsPath)) {
+            settings = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
+        }
+        // テーマ設定を更新
+        settings.themeMode = theme;
+        // ファイルに保存
+        fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2));
+        return { success: true };
+    }
+    catch (error) {
+        console.error('テーマ設定の保存エラー:', error);
+        return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+    }
+});
 // アプリケーション起動時の処理
 electron_1.app.on('ready', () => {
     createWindow();

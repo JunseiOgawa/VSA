@@ -11,6 +11,9 @@ interface ElectronAPI {
     nodeVersion: string;
   };
   onStatusUpdate: (callback: (data: any) => void) => void;
+  // テーマ設定関連の追加
+  getThemePreference: () => Promise<'light' | 'dark'>;
+  setThemePreference: (theme: 'light' | 'dark') => Promise<void>;
 }
 
 declare global {

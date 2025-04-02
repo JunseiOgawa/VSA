@@ -2,6 +2,20 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import './index.css';
 import App from './App';
+import { ThemeProvider } from './contexts/ThemeContext';
+import { createTheme } from "@mui/material";
+
+// Electron APIの型拡張
+declare global {
+  interface Window {
+    electronAPI: {
+      callApi: (endpoint: string, method: string, data?: any) => Promise<any>;
+      browseFolder: () => Promise<any>;
+      getAppInfo: () => any;
+      onStatusUpdate: (callback: (data: any) => void) => void;
+    } | undefined;
+  }
+}
 
 // ルート要素の取得
 const rootElement = document.getElementById('root');
@@ -17,6 +31,8 @@ const root = ReactDOM.createRoot(rootElement);
 // アプリケーションのレンダリング
 root.render(
   <React.StrictMode>
-    <App />
+    <ThemeProvider>
+      <App />
+    </ThemeProvider>
   </React.StrictMode>
 );
