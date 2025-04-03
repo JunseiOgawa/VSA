@@ -14,6 +14,11 @@ interface ElectronAPI {
   // テーマ設定関連の追加
   getThemePreference: () => Promise<'light' | 'dark'>;
   setThemePreference: (theme: 'light' | 'dark') => Promise<void>;
+  // ウィンドウコントロール関数
+  minimizeWindow: () => Promise<any>;
+  maximizeWindow: () => Promise<any>;
+  closeWindow: () => Promise<any>;
+  isWindowMaximized: () => Promise<boolean>;
 }
 
 declare global {

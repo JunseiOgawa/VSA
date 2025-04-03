@@ -35,6 +35,19 @@ electron_1.contextBridge.exposeInMainWorld('electronAPI', {
     // テーマ設定を保存
     setThemePreference: (theme) => {
         return electron_1.ipcRenderer.invoke('set-theme-preference', theme);
+    },
+    // ウィンドウコントロール関数
+    minimizeWindow: () => {
+        return electron_1.ipcRenderer.invoke('window-minimize');
+    },
+    maximizeWindow: () => {
+        return electron_1.ipcRenderer.invoke('window-maximize');
+    },
+    closeWindow: () => {
+        return electron_1.ipcRenderer.invoke('window-close');
+    },
+    isWindowMaximized: () => {
+        return electron_1.ipcRenderer.invoke('window-is-maximized');
     }
 });
 // 読み込み完了メッセージ

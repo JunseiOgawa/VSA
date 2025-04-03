@@ -3,7 +3,8 @@ import ReactDOM from 'react-dom/client';
 import './index.css';
 import App from './App';
 import { ThemeProvider } from './contexts/ThemeContext';
-import { createTheme } from "@mui/material";
+import { TemplateProvider } from './contexts/TemplateContext';
+import { BrowserRouter } from 'react-router-dom';
 
 // Electron APIの型拡張
 declare global {
@@ -13,7 +14,11 @@ declare global {
       browseFolder: () => Promise<any>;
       getAppInfo: () => any;
       onStatusUpdate: (callback: (data: any) => void) => void;
-    } | undefined;
+      isWindowMaximized: () => Promise<boolean>;
+      minimizeWindow: () => void;
+      maximizeWindow: () => void;
+      closeWindow: () => void;
+    }
   }
 }
 
@@ -31,8 +36,12 @@ const root = ReactDOM.createRoot(rootElement);
 // アプリケーションのレンダリング
 root.render(
   <React.StrictMode>
-    <ThemeProvider>
-      <App />
-    </ThemeProvider>
+    <BrowserRouter>
+      <ThemeProvider>
+        <TemplateProvider>
+          <App />
+        </TemplateProvider>
+      </ThemeProvider>
+    </BrowserRouter>
   </React.StrictMode>
 );

@@ -15,7 +15,8 @@ import PhotoLibraryIcon from '@mui/icons-material/PhotoLibrary';
 import PhotoAlbumIcon from '@mui/icons-material/PhotoAlbum';
 import CompressIcon from '@mui/icons-material/Compress';
 import SearchIcon from '@mui/icons-material/Search';
-import { useNavigate } from 'react-router-dom';
+import SettingsIcon from '@mui/icons-material/Settings';
+import TwitterIcon from '@mui/icons-material/Twitter'; // ツイートアイコンを追加
 
 // 機能カードのプロパティ型定義
 interface FeatureCardProps {
@@ -59,8 +60,8 @@ const Home: React.FC = () => {
   // 機能カードがクリックされたときの処理
   const handleFeatureClick = (feature: string) => {
     console.log(`${feature}機能がクリックされました`);
-    // ここで必要に応じてナビゲーションを行う (例: window.location.href = `/path/${feature}`)
-    // または親コンポーネントから渡されたコールバック関数を呼び出す
+    // App.tsx で状態を変更するために、イベントをトリガーする
+    window.dispatchEvent(new CustomEvent('menu-select', { detail: { menuId: feature } }));
   };
 
   return (
@@ -96,7 +97,7 @@ const Home: React.FC = () => {
 
       {/* 機能セクション */}
       <Typography variant="h5" component="h2" gutterBottom>
-        主な機能
+        全機能
       </Typography>
       <Divider sx={{ mb: 3 }} />
       
@@ -127,15 +128,31 @@ const Home: React.FC = () => {
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
           <FeatureCard 
+            title="ツイート" 
+            description="写真からSNS投稿用のテキストを自動生成します。" 
+            icon={<TwitterIcon fontSize="large" />}
+            onClick={() => handleFeatureClick('tweet')}
+          />
+        </Grid>
+        <Grid item xs={12} sm={6} md={3}>
+          <FeatureCard 
             title="高度な検索" 
             description="詳細な条件で写真を検索できます。" 
             icon={<SearchIcon fontSize="large" />}
             onClick={() => handleFeatureClick('advanced-search')}
           />
         </Grid>
+        <Grid item xs={12} sm={6} md={3}>
+          <FeatureCard 
+            title="設定" 
+            description="アプリケーションの各種設定を行います。" 
+            icon={<SettingsIcon fontSize="large" />}
+            onClick={() => handleFeatureClick('settings')}
+          />
+        </Grid>
       </Grid>
       
-      {/* 統計情報セクション （実際の実装ではデータベースから取得する値となる） */}
+      {/* 統計情報セクション */}
       <Paper elevation={2} sx={{ mt: 4, p: 3, borderRadius: 2 }}>
         <Typography variant="h6" gutterBottom>
           統計情報

@@ -54,6 +54,23 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // テーマ設定を保存
   setThemePreference: (theme: 'light' | 'dark') => {
     return ipcRenderer.invoke('set-theme-preference', theme);
+  },
+  
+  // ウィンドウコントロール関数
+  minimizeWindow: () => {
+    return ipcRenderer.invoke('window-minimize');
+  },
+  
+  maximizeWindow: () => {
+    return ipcRenderer.invoke('window-maximize');
+  },
+  
+  closeWindow: () => {
+    return ipcRenderer.invoke('window-close');
+  },
+  
+  isWindowMaximized: () => {
+    return ipcRenderer.invoke('window-is-maximized');
   }
 });
 

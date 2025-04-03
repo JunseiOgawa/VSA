@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   CssBaseline, 
   ThemeProvider as MuiThemeProvider, 
@@ -6,8 +6,6 @@ import {
   Typography,
   Box,
   CircularProgress,
-  AppBar,
-  Toolbar,
   Container
 } from '@mui/material';
 import SideMenu from './components/SideMenu';
@@ -16,6 +14,9 @@ import Photos from './components/Photos';
 import Albums from './components/Albums';
 import Compress from './components/Compress';
 import AdvancedSearch from './components/AdvancedSearch';
+import Settings from './components/Settings';
+import Tweet from './components/Tweet';
+import CustomTitleBar from './components/CustomTitleBar'; // カスタムタイトルバーをインポート
 import { useTheme } from './contexts/ThemeContext';
 import './App.css';
 
@@ -79,6 +80,23 @@ function App() {
     setSelectedMenu(menuId);
   };
 
+  // カスタムイベントリスナーを追加
+  useEffect(() => {
+    const handleMenuSelectEvent = (event: CustomEvent) => {
+      if (event.detail && event.detail.menuId) {
+        setSelectedMenu(event.detail.menuId);
+      }
+    };
+    
+    // イベントリスナーを追加
+    window.addEventListener('menu-select', handleMenuSelectEvent as EventListener);
+    
+    // クリーンアップ関数
+    return () => {
+      window.removeEventListener('menu-select', handleMenuSelectEvent as EventListener);
+    };
+  }, []);
+
   // メニューの開閉を制御
   const handleMenuOpenChange = (isOpen: boolean) => {
     setMenuOpen(isOpen);
@@ -119,8 +137,12 @@ function App() {
         return <Albums />;
       case 'compress':
         return <Compress />;
+      case 'tweet':
+        return <Tweet />;
       case 'advanced-search':
         return <AdvancedSearch />;
+      case 'settings':
+        return <Settings />;
       default:
         return <Home />;
     }
@@ -129,54 +151,50 @@ function App() {
   return (
     <MuiThemeProvider theme={theme}>
       <CssBaseline />
-      <Box sx={{ display: 'flex' }}>
-        {/* 左側メニュー */}
-        <SideMenu 
-          open={menuOpen} 
-          onSelectMenu={handleMenuSelect} 
-          selectedMenu={selectedMenu}
-          onOpenChange={handleMenuOpenChange}
-        />
+      <Box
+        sx={{
+          display: 'flex',
+          flexDirection: 'column',
+          height: '100vh',
+          overflow: 'hidden'
+        }}
+      >
+        {/* カスタムタイトルバー */}
+        <CustomTitleBar title="エーテル製 VRC Snap Archive" />
         
-        {/* メインコンテンツ */}
-        <Box
-          component="main"
-          sx={{
-            flexGrow: 1,
-            p: 3,
-            width: { sm: `calc(100% - ${menuOpen ? 240 : 8}px)` },
-            ml: { sm: menuOpen ? '240px' : '8px' },
-            transition: theme => theme.transitions.create(['margin', 'width'], {
-              easing: theme.transitions.easing.sharp,
-              duration: theme.transitions.duration.leavingScreen,
-            }),
-          }}
-        >
-          <AppBar 
-            position="static" 
-            color="transparent" 
-            elevation={0}
-            sx={{ 
-              borderBottom: 1, 
-              borderColor: 'divider',
-              backgroundColor: mode === 'light' ? 'rgba(255, 255, 255, 0.7)' : 'rgba(0, 0, 0, 0.2)'
+        <Box sx={{ display: 'flex', flexGrow: 1, overflow: 'hidden' }}>
+          {/* 左側メニュー */}
+          <SideMenu 
+            open={menuOpen} 
+            onSelectMenu={handleMenuSelect} 
+            selectedMenu={selectedMenu}
+            onOpenChange={handleMenuOpenChange}
+          />
+          
+          {/* メインコンテンツ */}
+          <Box
+            component="main"
+            sx={{
+              flexGrow: 1,
+              p: 3,
+              overflowY: 'auto',
+              height: 'calc(100vh - 32px)', // タイトルバーの高さを引く
+              width: '100%',
+              transition: theme => theme.transitions.create(['width'], {
+                easing: theme.transitions.easing.sharp,
+                duration: theme.transitions.duration.leavingScreen,
+              }),
             }}
           >
-            <Toolbar>
-              <Typography variant="h4" component="h1">
-                VRC Snap Archive
+            {/* 選択されたメニューに基づくコンテンツ */}
+            <Container maxWidth="lg" sx={{ mt: 2 }}>
+              {renderContent()}
+              
+              <Typography variant="body2" color="textSecondary" align="center" sx={{ mt: 4 }}>
+                VRC Snap Archive © 2023
               </Typography>
-            </Toolbar>
-          </AppBar>
-          
-          {/* 選択されたメニューに基づくコンテンツ */}
-          <Container maxWidth="lg" sx={{ mt: 4 }}>
-            {renderContent()}
-            
-            <Typography variant="body2" color="textSecondary" align="center" sx={{ mt: 4 }}>
-              VRC Snap Archive © 2023
-            </Typography>
-          </Container>
+            </Container>
+          </Box>
         </Box>
       </Box>
     </MuiThemeProvider>
