@@ -42,10 +42,224 @@ const showFolderDialog = async () => {
         return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
     }
 };
+// フォルダ一覧を取得する関数
+const getFolders = async (folderPath) => {
+    try {
+        // フォルダパスが指定されていない場合はエラー
+        if (!folderPath) {
+            return { success: false, error: 'フォルダパスが指定されていません' };
+        }
+        // フォルダの存在確認
+        if (!fs.existsSync(folderPath)) {
+            return { success: false, error: 'フォルダが存在しません' };
+        }
+        // フォルダ内容を読み取り
+        const entries = fs.readdirSync(folderPath, { withFileTypes: true });
+        // ディレクトリのみをフィルタリング
+        const folders = entries
+            .filter(entry => entry.isDirectory())
+            .map(dir => {
+            const dirPath = path.join(folderPath, dir.name);
+            let stats;
+            try {
+                stats = fs.statSync(dirPath);
+            }
+            catch (err) {
+                console.error(`Failed to get stats for ${dirPath}:`, err);
+                stats = null;
+            }
+            // フォルダ情報を返す
+            return {
+                name: dir.name,
+                path: dirPath,
+                lastModified: stats ? stats.mtime.toLocaleDateString() : 'Unknown',
+            };
+        })
+            .sort((a, b) => b.name.localeCompare(a.name)); // 日付でソート（新しい順）
+        return { success: true, data: folders };
+    }
+    catch (error) {
+        console.error('フォルダ一覧取得エラー:', error);
+        return {
+            success: false,
+            error: error instanceof Error ? error.message : 'Unknown error'
+        };
+    }
+};
+// 圧縮処理を実行する関数
+const compressFolder = async (request) => {
+    try {
+        const { sourcePath, outputPath, monthlyCompress } = request;
+        // 必要なパラメータが揃っているか確認
+        if (!sourcePath || !outputPath) {
+            return { success: false, error: '入力元と出力先のパスは必須です' };
+        }
+        // フォルダの存在確認
+        if (!fs.existsSync(sourcePath)) {
+            return { success: false, error: '入力元フォルダが存在しません' };
+        }
+        if (!fs.existsSync(outputPath)) {
+            // 出力先が存在しない場合は作成
+            try {
+                fs.mkdirSync(outputPath, { recursive: true });
+            }
+            catch (err) {
+                return { success: false, error: '出力先フォルダの作成に失敗しました' };
+            }
+        }
+        console.log(`圧縮処理を開始: ${sourcePath} -> ${outputPath}`);
+        // Pythonスクリプトのパスを指定
+        // 開発時とアプリ実行時のパスを考慮
+        let pythonScriptPath = '';
+        if (isDev) {
+            // 開発時は実際のPythonスクリプトを直接実行
+            pythonScriptPath = path.join(__dirname, '../../backend/compress_script.py');
+        }
+        else {
+            // 本番環境ではPyInstallerでパッケージ化したexeを実行
+            pythonScriptPath = path.join(process.resourcesPath, 'backend', 'compress_script.exe');
+        }
+        // 実行時オプションを設定
+        const options = {
+            sourcePath,
+            outputPath,
+            monthlyCompress: monthlyCompress ? 'true' : 'false'
+        };
+        // ここでPython処理を実行するコードを追加予定
+        // 注：実装は後で行います (要追加実装)
+        // 開発段階のモックレスポンス
+        return {
+            success: true,
+            data: {
+                message: '圧縮が完了しました',
+                source: sourcePath,
+                output: outputPath,
+                stats: {
+                    originalSize: '500 MB',
+                    compressedSize: '150 MB',
+                    compressionRatio: '70%',
+                    fileCount: 125,
+                    imageCount: 120
+                }
+            }
+        };
+    }
+    catch (error) {
+        console.error('圧縮処理エラー:', error);
+        return {
+            success: false,
+            error: error instanceof Error ? error.message : 'Unknown error'
+        };
+    }
+};
+// 月別フォルダー一覧を取得する関数
+const getMonthlyFolders = async (request) => {
+    try {
+        const { basePath, includeCurrent = false } = request;
+        // 基準パスが指定されていない場合はエラー
+        if (!basePath) {
+            return { success: false, error: 'ベースフォルダパスが指定されていません' };
+        }
+        // フォルダの存在確認
+        if (!fs.existsSync(basePath)) {
+            return { success: false, error: '指定されたフォルダが存在しません' };
+        }
+        // 現在の年月を取得
+        const now = new Date();
+        const currentYearMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+        // フォルダ一覧を取得
+        const folders = [];
+        const entries = fs.readdirSync(basePath, { withFileTypes: true });
+        for (const entry of entries) {
+            if (entry.isDirectory()) {
+                const folderName = entry.name;
+                // YYYY-MM形式のフォルダ名を検出
+                if (folderName.length === 7 && folderName[4] === '-' && !isNaN(Number(folderName.slice(0, 4))) && !isNaN(Number(folderName.slice(5)))) {
+                    // 現在月を除外するオプションがある場合
+                    if (!includeCurrent && folderName === currentYearMonth) {
+                        continue;
+                    }
+                    // フォルダ情報を取得
+                    const folderPath = path.join(basePath, folderName);
+                    let fileCount = 0;
+                    let folderSize = 0;
+                    // フォルダサイズと内容を計算
+                    // 注: 大規模フォルダの場合は非常に時間がかかる可能性があるため、実際の実装ではより効率的な方法が必要
+                    try {
+                        const walkFolder = (dirPath) => {
+                            const items = fs.readdirSync(dirPath, { withFileTypes: true });
+                            for (const item of items) {
+                                const itemPath = path.join(dirPath, item.name);
+                                if (item.isFile()) {
+                                    fileCount++;
+                                    folderSize += fs.statSync(itemPath).size;
+                                }
+                                else if (item.isDirectory()) {
+                                    walkFolder(itemPath);
+                                }
+                            }
+                        };
+                        walkFolder(folderPath);
+                        // フォルダ情報をリストに追加
+                        folders.push({
+                            name: folderName,
+                            path: folderPath,
+                            fileCount,
+                            size: folderSize,
+                            sizeFormatted: formatSize(folderSize),
+                            lastModified: fs.statSync(folderPath).mtime.toISOString()
+                        });
+                    }
+                    catch (err) {
+                        console.error(`フォルダ情報取得エラー ${folderName}:`, err);
+                    }
+                }
+            }
+        }
+        // 新しいものから順に並べ替え
+        folders.sort((a, b) => b.name.localeCompare(a.name));
+        return { success: true, data: folders };
+    }
+    catch (error) {
+        console.error('月別フォルダ取得エラー:', error);
+        return {
+            success: false,
+            error: error instanceof Error ? error.message : 'Unknown error'
+        };
+    }
+};
+// ファイルサイズのフォーマット関数
+const formatSize = (sizeInBytes) => {
+    if (sizeInBytes < 1024) {
+        return `${sizeInBytes} B`;
+    }
+    else if (sizeInBytes < 1024 * 1024) {
+        return `${(sizeInBytes / 1024).toFixed(1)} KB`;
+    }
+    else if (sizeInBytes < 1024 * 1024 * 1024) {
+        return `${(sizeInBytes / (1024 * 1024)).toFixed(1)} MB`;
+    }
+    else {
+        return `${(sizeInBytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+    }
+};
 // APIリクエストを処理する関数
 const handleApiCall = async (request) => {
+    var _a;
     try {
         console.log('API呼び出し:', request);
+        // フォルダ一覧取得のエンドポイント
+        if (request.endpoint === 'folders' && request.method === 'GET') {
+            return getFolders((_a = request.data) === null || _a === void 0 ? void 0 : _a.path);
+        }
+        // 月別フォルダ一覧取得のエンドポイント
+        if (request.endpoint === 'monthlyFolders' && request.method === 'GET') {
+            return getMonthlyFolders(request.data);
+        }
+        // 圧縮処理のエンドポイント
+        if (request.endpoint === 'compress' && request.method === 'RUN') {
+            return compressFolder(request.data);
+        }
         // テンプレート関連のエンドポイント処理
         if (request.endpoint === 'templates') {
             const userDataPath = electron_1.app.getPath('userData');
@@ -178,16 +392,26 @@ const handleApiCall = async (request) => {
                     friends: '友人A, 友人B',
                     fileName: 'VRChat_Sample'
                 };
+                // 選択された画像の枚数
+                const imageCount = imageIds.length;
+                const imageCountStr = imageCount.toString();
                 // ワールドURLを生成
                 const worldUrl = `https://vrchat.com/home/launch?worldId=${dummyMetadata.worldId}`;
-                // テンプレートを処理
+                // テンプレートを処理 - $count$ を確実に置換
                 let generatedText = template.content
                     .replace(/\$world_name\$/g, dummyMetadata.worldName)
                     .replace(/\$world_id\$/g, dummyMetadata.worldId)
                     .replace(/\$world_url\$/g, worldUrl)
                     .replace(/\$capture_time\$/g, dummyMetadata.captureTime)
                     .replace(/\$friends\$/g, dummyMetadata.friends)
-                    .replace(/\$file_name\$/g, dummyMetadata.fileName);
+                    .replace(/\$file_name\$/g, dummyMetadata.fileName)
+                    .replace(/\$count\$/g, imageCountStr); // 画像の枚数で$count$を置き換え
+                // 文字列の中に "$count$" が残っていれば、再度置換を試みる
+                if (generatedText.includes('$count$')) {
+                    generatedText = generatedText.replace(/\$count\$/g, imageCountStr);
+                }
+                console.log('生成されたテキスト:', generatedText); // デバッグ用ログ
+                console.log('画像枚数:', imageCount); // デバッグ用ログ
                 return {
                     success: true,
                     data: { text: generatedText }
@@ -252,10 +476,86 @@ function createWindow() {
         mainWindow.webContents.openDevTools(); // 開発者ツールを自動的に開く
     }
     else {
-        // ビルド済みのindex.htmlを読み込む
-        const indexPath = path.join(__dirname, '../build/index.html');
-        mainWindow.loadFile(indexPath);
-        console.log(`本番モード: ${indexPath} を読み込みました`);
+        try {
+            // デバッグ情報を表示
+            const appPath = electron_1.app.getAppPath();
+            console.log('アプリケーションパス:', appPath);
+            // ビルド済みHTMLファイルのパスを計算（複数の可能性を考慮）
+            let indexPath = path.join(__dirname, '../../build/index.html');
+            console.log('試行するindexパス1:', indexPath);
+            // パス1が見つからない場合は別の可能性を試す
+            if (!fs.existsSync(indexPath)) {
+                indexPath = path.join(appPath, 'build/index.html');
+                console.log('試行するindexパス2:', indexPath);
+            }
+            // パス2も見つからない場合は別の可能性を試す
+            if (!fs.existsSync(indexPath)) {
+                indexPath = path.join(appPath, '../build/index.html');
+                console.log('試行するindexパス3:', indexPath);
+            }
+            // 最終チェック
+            if (!fs.existsSync(indexPath)) {
+                // HTMLが見つからない場合はエラーページを表示
+                console.error('HTMLファイルが見つかりません。Reactアプリがビルドされていない可能性があります。');
+                mainWindow.loadURL(`data:text/html,
+          <html>
+            <head>
+              <title>Error</title>
+              <meta charset="utf-8">
+              <style>
+                body { font-family: Arial, sans-serif; background: #f0f0f0; color: #333; padding: 20px; text-align: center; }
+                h1 { color: #e74c3c; }
+                pre { background: #fff; padding: 15px; border-radius: 5px; text-align: left; overflow: auto; }
+                button { padding: 8px 16px; background: #3498db; color: white; border: none; border-radius: 4px; cursor: pointer; }
+              </style>
+            </head>
+            <body>
+              <h1>アプリケーション起動エラー</h1>
+              <p>アプリケーションの起動中にエラーが発生しました。</p>
+              <p>HTMLファイルが見つかりません。Reactアプリがビルドされていない可能性があります。</p>
+              <h3>パス情報:</h3>
+              <pre>
+アプリパス: ${appPath}
+試行したパス1: ${path.join(__dirname, '../../build/index.html')}
+試行したパス2: ${path.join(appPath, 'build/index.html')}
+試行したパス3: ${path.join(appPath, '../build/index.html')}
+              </pre>
+              <p>このエラーを解決するには、フロントエンドディレクトリで「npm run build」を実行してください。</p>
+              <button onclick="window.close()">アプリを閉じる</button>
+            </body>
+          </html>
+        `);
+                // 開発者ツールを開いて問題を確認しやすくする
+                mainWindow.webContents.openDevTools();
+                return;
+            }
+            // 正常にHTMLファイルが見つかった場合はロード
+            mainWindow.loadFile(indexPath);
+            console.log(`本番モード: ${indexPath} を読み込みました`);
+        }
+        catch (error) {
+            console.error('ファイル読み込みエラー:', error);
+            // エラーが発生した場合はエラーメッセージを表示
+            mainWindow.loadURL(`data:text/html,
+        <html>
+          <head>
+            <title>Error</title>
+            <meta charset="utf-8">
+            <style>
+              body { font-family: Arial, sans-serif; background: #f0f0f0; color: #333; padding: 20px; text-align: center; }
+              h1 { color: #e74c3c; }
+              pre { background: #fff; padding: 15px; border-radius: 5px; text-align: left; overflow: auto; }
+            </style>
+          </head>
+          <body>
+            <h1>エラーが発生しました</h1>
+            <p>${error instanceof Error ? error.message : '不明なエラー'}</p>
+            <pre>${error instanceof Error ? error.stack : 'スタックトレースなし'}</pre>
+          </body>
+        </html>
+      `);
+            mainWindow.webContents.openDevTools();
+        }
     }
     // ウィンドウのリサイズイベント
     mainWindow.on('resize', () => {
@@ -395,7 +695,30 @@ electron_1.ipcMain.handle('window-is-maximized', () => {
 });
 // アプリケーション起動時の処理
 electron_1.app.on('ready', () => {
+    // アプリケーションデータディレクトリの準備
+    const userDataPath = electron_1.app.getPath('userData');
+    // アプリケーションデータディレクトリが存在しない場合は作成
+    if (!fs.existsSync(userDataPath)) {
+        fs.mkdirSync(userDataPath, { recursive: true });
+    }
+    // 起動フラグファイルを作成（ランチャーが起動を検出できるようにするため）
+    const flagFilePath = path.join(userDataPath, '.app_running');
+    fs.writeFileSync(flagFilePath, new Date().toISOString());
+    // メインウィンドウを作成
     createWindow();
+});
+// アプリ終了時にフラグファイルを削除
+electron_1.app.on('will-quit', () => {
+    try {
+        const userDataPath = electron_1.app.getPath('userData');
+        const flagFilePath = path.join(userDataPath, '.app_running');
+        if (fs.existsSync(flagFilePath)) {
+            fs.unlinkSync(flagFilePath);
+        }
+    }
+    catch (error) {
+        console.error('フラグファイル削除エラー:', error);
+    }
 });
 // 全ウィンドウが閉じられた時の処理（MacOSを除く）
 electron_1.app.on('window-all-closed', () => {

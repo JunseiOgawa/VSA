@@ -2,7 +2,7 @@
   "compilerOptions": {
     "target": "ES2018",
     "module": "CommonJS",
-    "outDir": "../dist/electron",
+    "outDir": "../dist/electron",  // 出力先を明示的に指定
     "rootDir": "./",
     "strict": true,
     "esModuleInterop": true,
@@ -10,6 +10,6 @@
     "moduleResolution": "node"
   },
   "include": [
-    "*.ts"
+    "./**/*.ts"
   ]
 }

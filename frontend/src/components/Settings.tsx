@@ -16,7 +16,8 @@ import {
   MenuItem,
   Grid,
   Alert,
-  Snackbar
+  Snackbar,
+  InputLabel
 } from '@mui/material';
 import FolderIcon from '@mui/icons-material/Folder';
 import SettingsIcon from '@mui/icons-material/Settings';
@@ -38,8 +39,11 @@ const Settings: React.FC = () => {
   const [settings, setSettings] = useState({
     screenshotPath: '',
     outputPath: '',
+    compressOutputPath: '', // 圧縮出力先パスを追加
     language: 'ja',
-    autoCompress: false,
+    monthlyCompress: false, // 自動圧縮を月別フォルダ圧縮に変更
+    compressionQuality: 'high', // 圧縮品質を追加
+    retentionPeriod: '3' // 保持期間を追加
   });
   
   // 通知状態
@@ -78,7 +82,7 @@ const Settings: React.FC = () => {
   }, []);
   
   // フォルダ選択ハンドラ
-  const handleBrowseFolder = async (setting: 'screenshotPath' | 'outputPath') => {
+  const handleBrowseFolder = async (setting: 'screenshotPath' | 'outputPath' | 'compressOutputPath') => {
     if (window.electronAPI) {
       try {
         const result = await window.electronAPI.browseFolder();
@@ -289,15 +293,91 @@ const Settings: React.FC = () => {
               <StorageIcon />
             </ListItemIcon>
             <ListItemText 
-              primary="自動圧縮" 
-              secondary="新しいスクリーンショットを自動的に圧縮します" 
+              primary="月別フォルダを圧縮" 
+              secondary="写真を月ごとに圧縮ファイルにまとめます" 
             />
             <Switch
               edge="end"
-              checked={settings.autoCompress}
-              onChange={handleSwitchChange('autoCompress')}
-              inputProps={{ 'aria-label': '自動圧縮切替' }}
+              checked={settings.monthlyCompress}
+              onChange={handleSwitchChange('monthlyCompress')}
+              inputProps={{ 'aria-label': '月別フォルダ圧縮切替' }}
             />
+          </ListItem>
+          
+          {/* 圧縮出力先フォルダの設定を追加 */}
+          <ListItem sx={{ flexDirection: 'column', alignItems: 'flex-start', pt: 2 }}>
+            <ListItemText 
+              primary="圧縮ファイル出力先" 
+              secondary="圧縮されたファイルの保存先フォルダを選択します" 
+              sx={{ mb: 1 }}
+            />
+            <Box sx={{ display: 'flex', width: '100%', alignItems: 'center' }}>
+              <TextField
+                fullWidth
+                variant="outlined"
+                size="small"
+                name="compressOutputPath"
+                value={settings.compressOutputPath}
+                onChange={handleInputChange}
+                placeholder="圧縮ファイルの出力先フォルダを選択"
+                InputProps={{
+                  readOnly: true,
+                }}
+                sx={{ mr: 1 }}
+              />
+              <Button 
+                variant="outlined" 
+                startIcon={<FolderIcon />}
+                onClick={() => handleBrowseFolder('compressOutputPath')}
+              >
+                参照
+              </Button>
+            </Box>
+          </ListItem>
+          
+          {/* 圧縮設定オプションを追加 */}
+          <ListItem sx={{ flexDirection: 'column', alignItems: 'flex-start', pt: 2 }}>
+            <ListItemText 
+              primary="圧縮オプション" 
+              secondary="圧縮方法と保持期間の設定" 
+              sx={{ mb: 1 }}
+            />
+            <Box sx={{ width: '100%' }}>
+              <FormControl fullWidth sx={{ mb: 2 }}>
+                <InputLabel id="compression-quality-label">圧縮品質</InputLabel>
+                <Select
+                  labelId="compression-quality-label"
+                  name="compressionQuality"
+                  value={settings.compressionQuality || 'high'}
+                  onChange={(e) => setSettings({...settings, compressionQuality: e.target.value})}
+                  label="圧縮品質"
+                  size="small"
+                >
+                  <MenuItem value="lossless">可逆圧縮 (最高品質)</MenuItem>
+                  <MenuItem value="high">高品質 (推奨)</MenuItem>
+                  <MenuItem value="medium">標準品質 (高圧縮率)</MenuItem>
+                  <MenuItem value="low">低品質 (最大圧縮率)</MenuItem>
+                </Select>
+              </FormControl>
+              
+              <FormControl fullWidth>
+                <InputLabel id="retention-period-label">自動圧縮の保持期間</InputLabel>
+                <Select
+                  labelId="retention-period-label"
+                  name="retentionPeriod"
+                  value={settings.retentionPeriod || '3'}
+                  onChange={(e) => setSettings({...settings, retentionPeriod: e.target.value})}
+                  label="自動圧縮の保持期間"
+                  size="small"
+                >
+                  <MenuItem value="1">1ヶ月前から圧縮</MenuItem>
+                  <MenuItem value="3">3ヶ月前から圧縮</MenuItem>
+                  <MenuItem value="6">6ヶ月前から圧縮</MenuItem>
+                  <MenuItem value="12">1年前から圧縮</MenuItem>
+                  <MenuItem value="0">手動でのみ圧縮</MenuItem>
+                </Select>
+              </FormControl>
+            </Box>
           </ListItem>
         </List>
         

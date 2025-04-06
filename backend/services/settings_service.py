@@ -1,15 +1,12 @@
 import os
 import json
-import shutil
-from typing import Dict, Any, List, Optional
-from ..models.settings import Settings
-from ..database import SessionLocal
+from typing import Dict, Any, Optional
 
 class SettingsService:
     @staticmethod
     def initialize_settings() -> bool:
         """
-        launcherのappsettings.jsonをmainsettings.jsonとして初期化する
+        appsettings.jsonが存在するかを確認し、存在しない場合はデフォルト設定で作成する
         
         :return: 初期化成功フラグ
         """
@@ -17,37 +14,50 @@ class SettingsService:
             # プロジェクトのルートディレクトリパスを取得
             root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
             
-            launcher_settings_path = os.path.join(root_dir, "appsettings.json")
-            main_settings_path = os.path.join(root_dir, "mainsettings.json")
+            settings_path = os.path.join(root_dir, "appsettings.json")
             
-            # appsettings.jsonが存在するか確認
-            if not os.path.exists(launcher_settings_path):
-                print(f"Error: appsettings.json not found at {launcher_settings_path}")
-                return False
-            
-            # 既存のmainsettings.jsonがある場合、上書きする前に内容を確認
-            if os.path.exists(main_settings_path):
-                # ファイルの内容を読み込んで比較
-                with open(launcher_settings_path, 'r', encoding='utf-8') as launcher_file:
-                    launcher_settings = json.load(launcher_file)
+            # appsettings.jsonが存在しない場合、デフォルト設定で作成
+            if not os.path.exists(settings_path):
+                default_settings = {
+                    "screenshotPath": "",
+                    "outputPath": "",
+                    "folderStructure": {
+                        "enabled": True,
+                        "type": "month"
+                    },
+                    "fileRenaming": {
+                        "enabled": True,
+                        "format": "yyyy-MM-dd-HHmm-seq"
+                    },
+                    "metadata": {
+                        "enabled": True,
+                        "addWorldName": True,
+                        "addDateTime": True
+                    },
+                    "compression": {
+                        "autoCompress": True,
+                        "compressionLevel": "medium",
+                        "originalFileHandling": "keep"
+                    },
+                    "performance": {
+                        "cpuThreshold": 80,
+                        "maxConcurrentProcessing": 10
+                    },
+                    "language": "ja"
+                }
                 
-                with open(main_settings_path, 'r', encoding='utf-8') as main_file:
-                    main_settings = json.load(main_file)
+                with open(settings_path, 'w', encoding='utf-8') as f:
+                    json.dump(default_settings, f, ensure_ascii=False, indent=4)
                 
-                # 内容が同じ場合は何もしない
-                if launcher_settings == main_settings:
-                    print("Settings files are identical, no update needed")
-                    return True
+                print(f"Created default appsettings.json at {settings_path}")
+                return True
             
-            # ファイルをコピー
-            shutil.copy2(launcher_settings_path, main_settings_path)
-            print(f"Successfully copied {launcher_settings_path} to {main_settings_path}")
             return True
             
         except Exception as e:
             print(f"Error initializing settings: {str(e)}")
             return False
-    
+
     @staticmethod
     def get_settings() -> Dict[str, Any]:
         """
@@ -57,37 +67,71 @@ class SettingsService:
         """
         try:
             root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
-            main_settings_path = os.path.join(root_dir, "mainsettings.json")
+            settings_path = os.path.join(root_dir, "appsettings.json")
             
-            if not os.path.exists(main_settings_path):
-                # mainsettings.jsonがない場合、初期化を試みる
+            if not os.path.exists(settings_path):
+                # appsettings.jsonがない場合、初期化を試みる
                 success = SettingsService.initialize_settings()
                 if not success:
                     return {}
             
-            with open(main_settings_path, 'r', encoding='utf-8') as f:
+            with open(settings_path, 'r', encoding='utf-8') as f:
                 settings = json.load(f)
             
-            return settings
+            # フロントエンド用に一部設定を変換
+            frontend_settings = {
+                "screenshotPath": settings.get("screenshotPath", ""),
+                "outputPath": settings.get("outputPath", ""),
+                "language": settings.get("language", "ja"),
+                "autoCompress": settings.get("compression", {}).get("autoCompress", True),
+            }
+            
+            return frontend_settings
             
         except Exception as e:
             print(f"Error getting settings: {str(e)}")
             return {}
     
     @staticmethod
-    def update_settings(settings: Dict[str, Any]) -> bool:
+    def update_settings(new_settings: Dict[str, Any]) -> bool:
         """
-        設定情報を更新する
+        設定を更新する
         
-        :param settings: 更新する設定情報
+        :param new_settings: 新しい設定情報
         :return: 更新成功フラグ
         """
         try:
             root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
-            main_settings_path = os.path.join(root_dir, "mainsettings.json")
+            settings_path = os.path.join(root_dir, "appsettings.json")
             
-            with open(main_settings_path, 'w', encoding='utf-8') as f:
-                json.dump(settings, f, indent=2, ensure_ascii=False)
+            # 現在の設定を読み込む
+            if os.path.exists(settings_path):
+                with open(settings_path, 'r', encoding='utf-8') as f:
+                    current_settings = json.load(f)
+            else:
+                # ファイルがなければ初期化
+                SettingsService.initialize_settings()
+                with open(settings_path, 'r', encoding='utf-8') as f:
+                    current_settings = json.load(f)
+            
+            # フロントエンドから送られてきた設定を適切な場所に反映
+            if "screenshotPath" in new_settings:
+                current_settings["screenshotPath"] = new_settings["screenshotPath"]
+            
+            if "outputPath" in new_settings:
+                current_settings["outputPath"] = new_settings["outputPath"]
+            
+            if "language" in new_settings:
+                current_settings["language"] = new_settings["language"]
+            
+            if "autoCompress" in new_settings:
+                if "compression" not in current_settings:
+                    current_settings["compression"] = {}
+                current_settings["compression"]["autoCompress"] = new_settings["autoCompress"]
+            
+            # 更新した設定を保存
+            with open(settings_path, 'w', encoding='utf-8') as f:
+                json.dump(current_settings, f, ensure_ascii=False, indent=4)
             
             return True
             

@@ -101,6 +101,11 @@ const TweetView: React.FC = () => {
       // 選択解除
       setSelectedPhotos(prev => prev.filter(p => p.id !== photo.id));
     } else {
+      // 最大4枚の制限を設定
+      if (selectedPhotos.length >= 4) {
+        setError('写真は最大4枚まで選択できます');
+        return;
+      }
       // 選択追加
       setSelectedPhotos(prev => [...prev, photo]);
     }
@@ -540,8 +545,24 @@ const TweetView: React.FC = () => {
         maxWidth="md"
         fullWidth
       >
-        <DialogTitle>写真を選択</DialogTitle>
+        <DialogTitle>
+          写真を選択
+          {selectedPhotos.length > 0 && (
+            <Typography 
+              variant="body2" 
+              color={selectedPhotos.length >= 4 ? "error" : "textSecondary"}
+              sx={{ mt: 1 }}
+            >
+              {selectedPhotos.length}/4枚 選択中
+            </Typography>
+          )}
+        </DialogTitle>
         <DialogContent dividers>
+          {selectedPhotos.length >= 4 && (
+            <Alert severity="warning" sx={{ mb: 2 }}>
+              写真は最大4枚まで選択できます
+            </Alert>
+          )}
           <Grid container spacing={2}>
             {photos.map(photo => (
               <Grid item key={photo.id} xs={6} sm={4} md={3}>
@@ -549,10 +570,16 @@ const TweetView: React.FC = () => {
                   sx={{ 
                     border: selectedPhotos.some(p => p.id === photo.id) 
                       ? '2px solid #1976d2' 
-                      : '2px solid transparent'
+                      : '2px solid transparent',
+                    opacity: selectedPhotos.length >= 4 && !selectedPhotos.some(p => p.id === photo.id)
+                      ? 0.5 // 選択上限に達し、かつ選択されていない写真は半透明に
+                      : 1
                   }}
                 >
-                  <CardActionArea onClick={() => handleSelectPhoto(photo)}>
+                  <CardActionArea 
+                    onClick={() => handleSelectPhoto(photo)}
+                    disabled={selectedPhotos.length >= 4 && !selectedPhotos.some(p => p.id === photo.id)}
+                  >
                     <CardMedia
                       component="img"
                       height="120"

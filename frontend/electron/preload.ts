@@ -71,6 +71,21 @@ contextBridge.exposeInMainWorld('electronAPI', {
   
   isWindowMaximized: () => {
     return ipcRenderer.invoke('window-is-maximized');
+  },
+  
+  // アプリケーション状態の確認
+  checkAppStatus: () => {
+    return ipcRenderer.invoke('check-app-status');
+  },
+  
+  // アプリのバージョン情報
+  getAppVersion: () => {
+    return ipcRenderer.invoke('get-app-version');
+  },
+  
+  // アプリのパス情報
+  getAppPaths: () => {
+    return ipcRenderer.invoke('get-app-paths');
   }
 });
 

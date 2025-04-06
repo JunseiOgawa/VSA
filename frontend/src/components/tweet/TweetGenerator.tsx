@@ -108,7 +108,15 @@ const TweetGenerator: React.FC<TweetGeneratorProps> = ({ selectedImages = [] }) 
         });
         
         if (result.success && result.data?.text) {
-          setGeneratedText(result.data.text);
+          // 最後に特殊な値の置換をダブルチェック
+          let finalText = result.data.text;
+          
+          // $count$が残っている場合は手動で置換
+          if (finalText.includes('$count$')) {
+            finalText = finalText.replace(/\$count\$/g, selectedImages.length.toString());
+          }
+          
+          setGeneratedText(finalText);
         } else {
           throw new Error(result.error || '投稿文の生成に失敗しました');
         }
@@ -255,7 +263,7 @@ const TweetGenerator: React.FC<TweetGeneratorProps> = ({ selectedImages = [] }) 
           {selectedImages.length > 0 && (
             <Grid item xs={12}>
               <Typography variant="subtitle1" gutterBottom>
-                選択された画像 ({selectedImages.length}枚)
+                選択された画像 ({selectedImages.length}/4枚)
               </Typography>
               <Box sx={{ display: 'flex', overflowX: 'auto', gap: 1, pb: 1 }}>
                 {selectedImages.map((image, index) => (

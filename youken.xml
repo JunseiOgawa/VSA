@@ -533,9 +533,6 @@
       <Function>
         <Name>initialize_settings</Name>
         <Description>アプリケーション起動時に設定ファイルを初期化</Description>
-        <Implementation>
-          launcherのappsettings.jsonをmainsettings.jsonとして読み込み初期化する
-        </Implementation>
         <Returns>
           <Boolean>初期化成功フラグ</Boolean>
         </Returns>

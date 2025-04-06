@@ -48,6 +48,18 @@ electron_1.contextBridge.exposeInMainWorld('electronAPI', {
     },
     isWindowMaximized: () => {
         return electron_1.ipcRenderer.invoke('window-is-maximized');
+    },
+    // アプリケーション状態の確認
+    checkAppStatus: () => {
+        return electron_1.ipcRenderer.invoke('check-app-status');
+    },
+    // アプリのバージョン情報
+    getAppVersion: () => {
+        return electron_1.ipcRenderer.invoke('get-app-version');
+    },
+    // アプリのパス情報
+    getAppPaths: () => {
+        return electron_1.ipcRenderer.invoke('get-app-paths');
     }
 });
 // 読み込み完了メッセージ

@@ -354,52 +354,39 @@ namespace VSA_launcher
         {
             try
             {
-                // メインアプリが既に実行中かどうかを確認
-                if (IsMainAppRunning())
+                // アプリデータディレクトリを確認・作成
+                string appDataPath = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                    "SnapArchiveKai");
+                Directory.CreateDirectory(appDataPath);
+                
+                // 前回使用したElectronパスを確認（ある場合）
+                string electronPathCachePath = Path.Combine(appDataPath, "electron_path.txt");
+                string savedElectronPath = null;
+                if (File.Exists(electronPathCachePath))
                 {
-                    MessageBox.Show(
-                        "メインアプリは既に実行中です。",
-                        "情報",
-                        MessageBoxButtons.OK,
-                        MessageBoxIcon.Information);
-                    return;
-                }
-
-                // フロントエンドのパスを探す - 複数の候補から探す
-                string[] potentialFrontendPaths = new string[]
-                {
-                    // 開発パス
-                    @"d:\programmstage\VSA\frontend",
-                    
-                    // 実行ファイルと同じディレクトリの隣の「frontend」ディレクトリ
-                    Path.Combine(Path.GetDirectoryName(Application.ExecutablePath), "frontend"),
-                    
-                    // 実行ファイルの親ディレクトリの「frontend」ディレクトリ
-                    Path.Combine(Path.GetDirectoryName(Application.ExecutablePath), "..", "frontend")
-                };
-
-                string frontendPath = null;
-                foreach (string path in potentialFrontendPaths)
-                {
-                    if (Directory.Exists(path))
+                    savedElectronPath = File.ReadAllText(electronPathCachePath).Trim();
+                    if (File.Exists(savedElectronPath))
                     {
-                        frontendPath = path;
-                        break;
+                        // 保存されていたElectronパスが有効なので使用
+                        LaunchWithElectronPath(savedElectronPath);
+                        return;
                     }
                 }
-
-                if (frontendPath == null)
+                
+                // フロントエンドフォルダを見つける
+                string frontendPath = FindFrontendPath();
+                if (string.IsNullOrEmpty(frontendPath))
                 {
                     MessageBox.Show(
-                        "メインアプリケーションフォルダが見つかりません。\n以下のパスを確認しました:\n" + 
-                        string.Join("\n", potentialFrontendPaths),
+                        "メインアプリケーションフォルダが見つかりません。",
                         "エラー",
                         MessageBoxButtons.OK,
                         MessageBoxIcon.Error);
                     return;
                 }
 
-                // Electronアプリの直接起動方法（複数の候補から探す）
+                // 複数の候補からElectronを探す
                 string[] electronPaths = new string[]
                 {
                     // node_modulesディレクトリからElectronを探す
@@ -407,100 +394,209 @@ namespace VSA_launcher
                     
                     // node_modulesディレクトリから.binフォルダを探す
                     Path.Combine(frontendPath, "node_modules", ".bin", "electron.cmd"),
+                    Path.Combine(frontendPath, "node_modules", ".bin", "electron.exe"),
                     
                     // グローバルインストールしたElectron
-                    @"C:\Program Files\nodejs\electron.exe"
+                    Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "nodejs", "electron.exe"),
+                    Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), "nodejs", "electron.exe")
                 };
 
-                string electronPath = null;
+                // 最初に見つかったElectronパスを使用
                 foreach (string path in electronPaths)
                 {
                     if (File.Exists(path))
                     {
-                        electronPath = path;
-                        break;
+                        // 見つかったパスをキャッシュに保存
+                        File.WriteAllText(electronPathCachePath, path);
+                        LaunchWithElectronPath(path);
+                        return;
                     }
                 }
 
-                // main.jsファイルのパス
-                string mainJsPath = Path.Combine(frontendPath, "electron", "main.js");
-                
-                // main.jsファイルが存在するか確認
-                if (!File.Exists(mainJsPath))
+                // Electronが見つからない場合はnode.jsを使用する
+                LaunchWithNodeJS(frontendPath);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(
+                    $"アプリケーション起動中にエラーが発生しました: {ex.Message}",
+                    "エラー",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
+            }
+        }
+
+        private void LaunchWithElectronPath(string electronPath)
+        {
+            string frontendPath = FindFrontendPath();
+            // パスを dist/electron/main.js に変更
+            string mainJsPath = Path.Combine(frontendPath, "dist", "electron", "main.js");
+            
+            if (!File.Exists(mainJsPath))
+            {
+                // ビルドされたJSファイルが見つからない場合、ビルドを試みる
+                try {
+                    string npmPath = "npm.cmd";
+                    
+                    // まず最初にReactアプリをビルド
+                    ProcessStartInfo reactBuildInfo = new ProcessStartInfo
+                    {
+                        FileName = npmPath,
+                        Arguments = "run build",
+                        WorkingDirectory = frontendPath,
+                        UseShellExecute = true,
+                        CreateNoWindow = false
+                    };
+                    
+                    // ビルド中であることをユーザーに通知
+                    UpdateStatusInfo("ビルド中", "Reactアプリをビルドしています...");
+                    
+                    var reactBuildProcess = Process.Start(reactBuildInfo);
+                    reactBuildProcess.WaitForExit();
+                    
+                    // 次にElectronビルド
+                    ProcessStartInfo electronBuildInfo = new ProcessStartInfo
+                    {
+                        FileName = npmPath,
+                        Arguments = "run build-electron",
+                        WorkingDirectory = frontendPath,
+                        UseShellExecute = true,
+                        CreateNoWindow = false
+                    };
+                    
+                    UpdateStatusInfo("ビルド中", "Electronアプリをビルドしています...");
+                    
+                    var buildProcess = Process.Start(electronBuildInfo);
+                    buildProcess.WaitForExit();
+                    
+                    UpdateStatusInfo("ビルド完了", "アプリケーションのビルドが完了しました");
+                    
+                    // ビルド後も存在確認
+                    if (!File.Exists(mainJsPath))
+                    {
+                        MessageBox.Show(
+                            $"メインJSファイルが見つかりません: {mainJsPath}",
+                            "エラー",
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Error);
+                        return;
+                    }
+                    
+                    // build/index.htmlの存在も確認
+                    string indexHtmlPath = Path.Combine(frontendPath, "build", "index.html");
+                    if (!File.Exists(indexHtmlPath))
+                    {
+                        MessageBox.Show(
+                            $"ビルド済みのindex.htmlが見つかりません: {indexHtmlPath}",
+                            "エラー",
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Error);
+                        return;
+                    }
+                }
+                catch (Exception ex)
                 {
                     MessageBox.Show(
-                        $"メインJSファイルが見つかりません: {mainJsPath}",
+                        $"ビルド中にエラーが発生しました: {ex.Message}",
                         "エラー",
                         MessageBoxButtons.OK,
                         MessageBoxIcon.Error);
                     return;
                 }
-
-                ProcessStartInfo startInfo;
-                
-                if (electronPath != null)
-                {
-                    // Electronが直接実行可能な場合、Electronを使用してmain.jsを起動
-                    startInfo = new ProcessStartInfo
-                    {
-                        FileName = electronPath,
-                        Arguments = $"\"{mainJsPath}\"",
-                        WorkingDirectory = frontendPath,
-                        UseShellExecute = true, // Windowsシェル経由で起動 (コンソールを表示するために変更)
-                        CreateNoWindow = false  // コンソールウィンドウを表示する (デバッグ中は表示)
-                    };
-                }
-                else
-                {
-                    // node.jsを使用してmain.jsを直接実行
-                    string nodePath = "node.exe";
-                    
-                    startInfo = new ProcessStartInfo
-                    {
-                        FileName = nodePath,
-                        Arguments = $"\"{mainJsPath}\"",
-                        WorkingDirectory = frontendPath,
-                        UseShellExecute = true,
-                        CreateNoWindow = false
-                    };
-                }
-
-                // アプリケーションフォルダにnodeモジュールのログファイルを作成（デバッグ用）
-                string logPath = Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-                    "SnapArchiveKai",
-                    "electron_launch.log");
-                
-                // アプリデータディレクトリがなければ作成
-                Directory.CreateDirectory(Path.GetDirectoryName(logPath));
-                
-                // ログファイルにパス情報などを記録（デバッグ用）
-                File.WriteAllText(logPath, 
-                    $"Launch attempt: {DateTime.Now}\n" +
-                    $"Frontend path: {frontendPath}\n" +
-                    $"Electron path: {electronPath ?? "Not found"}\n" +
-                    $"Main.js path: {mainJsPath}\n" +
-                    $"Command: {startInfo.FileName} {startInfo.Arguments}\n"
-                );
-
-                // プロセスを起動
-                Process.Start(startInfo);
-
-                // 最後に起動状態を通知
-                UpdateStatusInfo("メインアプリケーション起動中...", "起動処理中です");
-                
-                // 起動ボタンの状態を更新
-                UpdateLaunchButtonState();
             }
-            catch (Exception ex)
+            
+            ProcessStartInfo startInfo = new ProcessStartInfo
+            {
+                FileName = electronPath,
+                Arguments = $"\"{mainJsPath}\"",
+                WorkingDirectory = frontendPath,
+                UseShellExecute = true,
+                CreateNoWindow = false
+            };
+            
+            // ログファイルに起動情報を記録
+            string logPath = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                "SnapArchiveKai",
+                "electron_launch.log");
+            
+            File.WriteAllText(logPath, 
+                $"Launch attempt: {DateTime.Now}\n" +
+                $"Electron path: {electronPath}\n" +
+                $"Main.js path: {mainJsPath}\n" +
+                $"Working directory: {frontendPath}\n" +
+                $"Command: {startInfo.FileName} {startInfo.Arguments}\n"
+            );
+            
+            // プロセスを起動
+            Process.Start(startInfo);
+        }
+
+        private void LaunchWithNodeJS(string frontendPath)
+        {
+            string mainJsPath = Path.Combine(frontendPath, "electron", "main.js");
+            
+            if (!File.Exists(mainJsPath))
             {
                 MessageBox.Show(
-                    $"メインアプリケーションの起動に失敗しました。\n\nエラー詳細: {ex.Message}",
+                    $"メインJSファイルが見つかりません: {mainJsPath}",
                     "エラー",
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Error);
-                UpdateStatusInfo("起動エラー", ex.Message);
+                return;
             }
+            
+            ProcessStartInfo startInfo = new ProcessStartInfo
+            {
+                FileName = "node.exe",
+                Arguments = $"\"{mainJsPath}\"",
+                WorkingDirectory = frontendPath,
+                UseShellExecute = true,
+                CreateNoWindow = false
+            };
+            
+            // ログファイルに起動情報を記録
+            string logPath = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                "SnapArchiveKai",
+                "electron_launch.log");
+            
+            File.WriteAllText(logPath, 
+                $"Launch attempt with Node.js: {DateTime.Now}\n" +
+                $"Node path: node.exe (system PATH)\n" +
+                $"Main.js path: {mainJsPath}\n" +
+                $"Working directory: {frontendPath}\n" +
+                $"Command: {startInfo.FileName} {startInfo.Arguments}\n"
+            );
+            
+            // プロセスを起動
+            Process.Start(startInfo);
+        }
+
+        private string FindFrontendPath()
+        {
+            // フロントエンドの候補パスを設定
+            string[] potentialFrontendPaths = new string[]
+            {
+                // 実行ファイルと同じディレクトリの隣接フォルダ
+                Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "frontend"),
+                Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "frontend"),
+                
+                // 固定パス（開発環境用）
+                @"d:\programmstage\VSA\frontend"
+            };
+            
+            // 最初に見つかった有効なパスを返す
+            foreach (string path in potentialFrontendPaths)
+            {
+                string normalizedPath = Path.GetFullPath(path);
+                if (Directory.Exists(normalizedPath))
+                {
+                    return normalizedPath;
+                }
+            }
+            
+            return null;
         }
 
         /// <summary>
