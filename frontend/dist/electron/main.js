@@ -27,7 +27,35 @@ const electron_1 = require("electron");
 const path = __importStar(require("path"));
 const fs = __importStar(require("fs"));
 // 開発モードかどうかを判定
-const isDev = !electron_1.app.isPackaged;
+const isDev = process.env.NODE_ENV === 'development' && !electron_1.app.isPackaged;
+// 明示的に開発サーバーが起動しているかチェックする関数
+const isDevServerRunning = async () => {
+    try {
+        // localhost:3000に接続テスト
+        const net = require('net');
+        return new Promise((resolve) => {
+            const socket = new net.Socket();
+            const timeout = setTimeout(() => {
+                socket.destroy();
+                resolve(false);
+            }, 1000);
+            socket.connect(3000, '127.0.0.1', () => {
+                clearTimeout(timeout);
+                socket.destroy();
+                resolve(true);
+            });
+            socket.on('error', () => {
+                clearTimeout(timeout);
+                socket.destroy();
+                resolve(false);
+            });
+        });
+    }
+    catch (err) {
+        console.error('開発サーバー接続確認エラー:', err);
+        return false;
+    }
+};
 // メインウィンドウの型定義
 let mainWindow = null;
 // フォルダ選択ダイアログを表示する関数
@@ -471,91 +499,21 @@ function createWindow() {
     // 開発モードの場合はReact開発サーバーを読み込む
     // 本番モードの場合はビルドされたindex.htmlを読み込む
     if (isDev) {
-        mainWindow.loadURL('http://localhost:3000');
-        console.log('開発モード: Reactサーバーに接続しています');
-        mainWindow.webContents.openDevTools(); // 開発者ツールを自動的に開く
+        isDevServerRunning().then((isRunning) => {
+            if (isRunning && mainWindow) {
+                mainWindow.loadURL('http://localhost:3000');
+                console.log('開発モード: Reactサーバーに接続しています');
+                mainWindow.webContents.openDevTools(); // 開発者ツールを自動的に開く
+            }
+            else {
+                console.log('開発サーバーが起動していません。ビルド済みファイルを使用します。');
+                // 開発サーバーが起動していない場合はビルド済みファイルを使用
+                loadProductionBuild();
+            }
+        });
     }
     else {
-        try {
-            // デバッグ情報を表示
-            const appPath = electron_1.app.getAppPath();
-            console.log('アプリケーションパス:', appPath);
-            // ビルド済みHTMLファイルのパスを計算（複数の可能性を考慮）
-            let indexPath = path.join(__dirname, '../../build/index.html');
-            console.log('試行するindexパス1:', indexPath);
-            // パス1が見つからない場合は別の可能性を試す
-            if (!fs.existsSync(indexPath)) {
-                indexPath = path.join(appPath, 'build/index.html');
-                console.log('試行するindexパス2:', indexPath);
-            }
-            // パス2も見つからない場合は別の可能性を試す
-            if (!fs.existsSync(indexPath)) {
-                indexPath = path.join(appPath, '../build/index.html');
-                console.log('試行するindexパス3:', indexPath);
-            }
-            // 最終チェック
-            if (!fs.existsSync(indexPath)) {
-                // HTMLが見つからない場合はエラーページを表示
-                console.error('HTMLファイルが見つかりません。Reactアプリがビルドされていない可能性があります。');
-                mainWindow.loadURL(`data:text/html,
-          <html>
-            <head>
-              <title>Error</title>
-              <meta charset="utf-8">
-              <style>
-                body { font-family: Arial, sans-serif; background: #f0f0f0; color: #333; padding: 20px; text-align: center; }
-                h1 { color: #e74c3c; }
-                pre { background: #fff; padding: 15px; border-radius: 5px; text-align: left; overflow: auto; }
-                button { padding: 8px 16px; background: #3498db; color: white; border: none; border-radius: 4px; cursor: pointer; }
-              </style>
-            </head>
-            <body>
-              <h1>アプリケーション起動エラー</h1>
-              <p>アプリケーションの起動中にエラーが発生しました。</p>
-              <p>HTMLファイルが見つかりません。Reactアプリがビルドされていない可能性があります。</p>
-              <h3>パス情報:</h3>
-              <pre>
-アプリパス: ${appPath}
-試行したパス1: ${path.join(__dirname, '../../build/index.html')}
-試行したパス2: ${path.join(appPath, 'build/index.html')}
-試行したパス3: ${path.join(appPath, '../build/index.html')}
-              </pre>
-              <p>このエラーを解決するには、フロントエンドディレクトリで「npm run build」を実行してください。</p>
-              <button onclick="window.close()">アプリを閉じる</button>
-            </body>
-          </html>
-        `);
-                // 開発者ツールを開いて問題を確認しやすくする
-                mainWindow.webContents.openDevTools();
-                return;
-            }
-            // 正常にHTMLファイルが見つかった場合はロード
-            mainWindow.loadFile(indexPath);
-            console.log(`本番モード: ${indexPath} を読み込みました`);
-        }
-        catch (error) {
-            console.error('ファイル読み込みエラー:', error);
-            // エラーが発生した場合はエラーメッセージを表示
-            mainWindow.loadURL(`data:text/html,
-        <html>
-          <head>
-            <title>Error</title>
-            <meta charset="utf-8">
-            <style>
-              body { font-family: Arial, sans-serif; background: #f0f0f0; color: #333; padding: 20px; text-align: center; }
-              h1 { color: #e74c3c; }
-              pre { background: #fff; padding: 15px; border-radius: 5px; text-align: left; overflow: auto; }
-            </style>
-          </head>
-          <body>
-            <h1>エラーが発生しました</h1>
-            <p>${error instanceof Error ? error.message : '不明なエラー'}</p>
-            <pre>${error instanceof Error ? error.stack : 'スタックトレースなし'}</pre>
-          </body>
-        </html>
-      `);
-            mainWindow.webContents.openDevTools();
-        }
+        loadProductionBuild();
     }
     // ウィンドウのリサイズイベント
     mainWindow.on('resize', () => {
@@ -568,6 +526,96 @@ function createWindow() {
         const userDataPath = electron_1.app.getPath('userData');
         fs.writeFileSync(path.join(userDataPath, '.launcher_reactivate'), 'closed');
     });
+}
+// ビルド済みのReactアプリを読み込む関数
+function loadProductionBuild() {
+    if (!mainWindow)
+        return;
+    // ビルド済みのindex.htmlを検索する順番に複数のパスを試す
+    const possiblePaths = [
+        path.join(__dirname, '../../build/index.html'),
+        path.join(__dirname, '../build/index.html'),
+        path.join(__dirname, '../../frontend/build/index.html'),
+        path.join(electron_1.app.getAppPath(), 'build/index.html'),
+        path.join(process.cwd(), 'build/index.html')
+    ];
+    console.log('ビルド済みファイルを探しています...');
+    console.log('現在の__dirname:', __dirname);
+    console.log('appPath:', electron_1.app.getAppPath());
+    console.log('cwd:', process.cwd());
+    // 存在するパスを見つける
+    let indexPath = '';
+    for (const testPath of possiblePaths) {
+        console.log('パスをチェック中:', testPath);
+        if (fs.existsSync(testPath)) {
+            indexPath = testPath;
+            console.log('見つかりました:', indexPath);
+            break;
+        }
+    }
+    if (indexPath) {
+        // ファイルが見つかったらロード
+        console.log(`本番モード: ${indexPath} を読み込みました`);
+        mainWindow.loadFile(indexPath);
+        // 常に開発者ツールを表示（デバッグモード）
+        mainWindow.webContents.openDevTools();
+        // webContentsのイベントをリッスン
+        mainWindow.webContents.on('did-finish-load', () => {
+            console.log('ページ読み込み完了');
+        });
+        mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription) => {
+            console.error('ページ読み込み失敗:', errorCode, errorDescription);
+        });
+        mainWindow.webContents.on('dom-ready', () => {
+            console.log('DOM準備完了');
+            // ページ内でのコンソールログをリッスン
+            if (mainWindow) {
+                mainWindow.webContents.on('console-message', (event, level, message, line, sourceId) => {
+                    const levels = ['log', 'warn', 'error', 'info'];
+                    console.log(`[ブラウザコンソール][${levels[level] || level}] ${message}`);
+                });
+                // Reactアプリが正しく初期化されているか確認するスクリプトを実行
+                mainWindow.webContents.executeJavaScript(`
+          console.log('Reactルート要素チェック: ', document.getElementById('root'));
+          console.log('body内容: ', document.body.innerHTML);
+          if (window.electronAPI) {
+            console.log('electronAPI利用可能');
+          } else {
+            console.error('electronAPI未定義!');
+          }
+        `);
+            }
+        });
+        // クラッシュやハングを検出
+        mainWindow.webContents.on('crashed', () => {
+            console.error('レンダラープロセスがクラッシュしました');
+        });
+        mainWindow.on('unresponsive', () => {
+            console.error('アプリケーションが応答しなくなりました');
+        });
+    }
+    else {
+        // ファイルが見つからなかった場合はエラーメッセージを表示
+        console.error('ビルド済みindex.htmlが見つかりません！');
+        mainWindow.loadURL(`data:text/html,
+    <html>
+      <head>
+        <title>エラー</title>
+        <style>
+          body { font-family: sans-serif; padding: 2em; color: #333; background: #f5f5f5; }
+          h2 { color: #d32f2f; }
+          pre { background: #eee; padding: 1em; border-radius: 4px; }
+        </style>
+      </head>
+      <body>
+        <h2>アプリケーションの読み込みに失敗しました</h2>
+        <p>index.htmlファイルが見つかりませんでした。</p>
+        <p>ビルドディレクトリが正しく生成されているか確認してください。</p>
+        <p>試行したパス:</p>
+        <pre>${possiblePaths.join('\n')}</pre>
+      </body>
+    </html>`);
+    }
 }
 // CSSをリロードするIPC通信（開発モード用）
 electron_1.ipcMain.handle('reload-css', () => {
@@ -693,19 +741,46 @@ electron_1.ipcMain.handle('window-close', () => {
 electron_1.ipcMain.handle('window-is-maximized', () => {
     return mainWindow ? mainWindow.isMaximized() : false;
 });
+// プリロードスクリプトの存在確認と内容ログ出力
+electron_1.ipcMain.handle('check-preload', () => {
+    try {
+        const preloadPath = path.join(__dirname, './preload.js');
+        console.log('プリロードパス確認:', preloadPath);
+        console.log('プリロードファイル存在:', fs.existsSync(preloadPath));
+        if (fs.existsSync(preloadPath)) {
+            const stats = fs.statSync(preloadPath);
+            console.log('プリロードファイルサイズ:', stats.size, 'バイト');
+            console.log('最終更新日時:', stats.mtime);
+            // ファイルの内容をコンソールに出力（デバッグ用）
+            const content = fs.readFileSync(preloadPath, 'utf8');
+            console.log('プリロードファイル内容の一部:', content.substring(0, 500) + '...');
+        }
+        return { success: true };
+    }
+    catch (error) {
+        console.error('プリロードファイル確認エラー:', error);
+        return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+    }
+});
 // アプリケーション起動時の処理
 electron_1.app.on('ready', () => {
+    console.log('===== Electron アプリ起動開始 =====');
     // アプリケーションデータディレクトリの準備
     const userDataPath = electron_1.app.getPath('userData');
+    console.log('ユーザーデータパス:', userDataPath);
     // アプリケーションデータディレクトリが存在しない場合は作成
     if (!fs.existsSync(userDataPath)) {
+        console.log('ユーザーデータディレクトリが存在しないため作成します');
         fs.mkdirSync(userDataPath, { recursive: true });
     }
     // 起動フラグファイルを作成（ランチャーが起動を検出できるようにするため）
     const flagFilePath = path.join(userDataPath, '.app_running');
     fs.writeFileSync(flagFilePath, new Date().toISOString());
+    console.log('起動フラグファイル作成:', flagFilePath);
     // メインウィンドウを作成
+    console.log('メインウィンドウ作成開始');
     createWindow();
+    console.log('メインウィンドウ作成完了');
 });
 // アプリ終了時にフラグファイルを削除
 electron_1.app.on('will-quit', () => {

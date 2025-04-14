@@ -4,7 +4,7 @@ import './index.css';
 import App from './App';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { TemplateProvider } from './contexts/TemplateContext';
-import { BrowserRouter } from 'react-router-dom';
+import { HashRouter } from 'react-router-dom';
 
 // Electron APIの型拡張
 declare global {
@@ -36,12 +36,12 @@ const root = ReactDOM.createRoot(rootElement);
 // アプリケーションのレンダリング
 root.render(
   <React.StrictMode>
-    <BrowserRouter>
+    <HashRouter>
       <ThemeProvider>
         <TemplateProvider>
           <App />
         </TemplateProvider>
       </ThemeProvider>
-    </BrowserRouter>
+    </HashRouter>
   </React.StrictMode>
 );
