@@ -26,15 +26,28 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const electron_1 = require("electron");
 const path = __importStar(require("path"));
 const fs = __importStar(require("fs"));
+const childProcess = __importStar(require("child_process"));
+const http = __importStar(require("http"));
+const net = __importStar(require("net"));
 // 開発モードかどうかを判定
 const isDev = process.env.NODE_ENV === 'development' && !electron_1.app.isPackaged;
+// Python APIサーバープロセス
+let pythonProcess = null;
+// APIサーバーのポート
+const API_PORT = 5000;
+// パスセパレータを取得（OSに依存）
+const PATH_SEPARATOR = path.sep;
+// アプリケーション状態管理
+const appState = {
+    isQuitting: false,
+    apiServerRunning: false,
+    apiServerPort: 5000
+};
 // 明示的に開発サーバーが起動しているかチェックする関数
 const isDevServerRunning = async () => {
     try {
-        // localhost:3000に接続テスト
-        const net = require('net');
+        const socket = new net.Socket();
         return new Promise((resolve) => {
-            const socket = new net.Socket();
             const timeout = setTimeout(() => {
                 socket.destroy();
                 resolve(false);
@@ -54,6 +67,162 @@ const isDevServerRunning = async () => {
     catch (err) {
         console.error('開発サーバー接続確認エラー:', err);
         return false;
+    }
+};
+// Pythonバックエンドサーバーを起動する関数
+const startPythonApiServer = async () => {
+    var _a, _b;
+    try {
+        // すでに起動している場合は何もしない
+        if (appState.apiServerRunning) {
+            console.log('APIサーバーはすでに起動しています');
+            return true;
+        }
+        console.log('Pythonバックエンドサーバーを起動します...');
+        // バックエンドのパスを設定
+        let pythonScriptPath;
+        let pythonExePath;
+        if (isDev) {
+            // 開発環境ではプロジェクトフォルダ内のPythonスクリプトを使用
+            pythonScriptPath = path.join(__dirname, '..', '..', 'backend', 'main.py');
+            pythonExePath = 'python'; // システムのPythonを使用
+        }
+        else {
+            // 本番環境では同梱されたPythonとスクリプトを使用
+            pythonScriptPath = path.join(process.resourcesPath, 'backend', 'main.py');
+            pythonExePath = path.join(process.resourcesPath, 'python', 'python.exe');
+            // Windowsでない場合はpython3を使用
+            if (process.platform !== 'win32') {
+                pythonExePath = path.join(process.resourcesPath, 'python', 'bin', 'python3');
+            }
+        }
+        // アプリケーション設定ファイルのパス
+        const userDataPath = electron_1.app.getPath('userData');
+        const appSettingsPath = path.join(userDataPath, 'appsettings.json');
+        // 設定ファイルが存在するか確認し、存在しない場合は初期化
+        if (!fs.existsSync(appSettingsPath)) {
+            const initialSettings = {
+                inputPictureFolders: [],
+                outputFolder: "",
+                sortMethod: "monthly",
+                renameFormat: "yyyy-MM-dd-HH-mm-ss"
+            };
+            fs.writeFileSync(appSettingsPath, JSON.stringify(initialSettings, null, 2));
+        }
+        // コマンドライン引数を構築
+        const args = [
+            pythonScriptPath,
+            '--port', appState.apiServerPort.toString(),
+            '--appdata', userDataPath
+        ];
+        console.log(`バックエンドサーバー起動コマンド: ${pythonExePath} ${args.join(' ')}`);
+        // Pythonプロセスを起動
+        pythonProcess = childProcess.spawn(pythonExePath, args, {
+            stdio: ['pipe', 'pipe', 'pipe'],
+            detached: false
+        });
+        // 標準出力のリスナー
+        (_a = pythonProcess.stdout) === null || _a === void 0 ? void 0 : _a.on('data', (data) => {
+            const output = data.toString().trim();
+            console.log(`[Python] ${output}`);
+            // サーバー起動完了メッセージをチェック
+            if (output.includes('Running on http://') && output.includes(`${appState.apiServerPort}`)) {
+                appState.apiServerRunning = true;
+                console.log(`APIサーバーが起動しました: ポート ${appState.apiServerPort}`);
+                // メインウィンドウにサーバー起動通知を送信
+                if (mainWindow) {
+                    mainWindow.webContents.send('api-server-status', {
+                        running: true,
+                        port: appState.apiServerPort
+                    });
+                }
+            }
+        });
+        // 標準エラー出力のリスナー
+        (_b = pythonProcess.stderr) === null || _b === void 0 ? void 0 : _b.on('data', (data) => {
+            console.error(`[Python Error] ${data.toString().trim()}`);
+        });
+        // プロセス終了時のリスナー
+        pythonProcess.on('close', (code) => {
+            console.log(`Pythonプロセスが終了しました: コード ${code}`);
+            appState.apiServerRunning = false;
+            pythonProcess = null;
+            // メインウィンドウにサーバー停止通知を送信
+            if (mainWindow) {
+                mainWindow.webContents.send('api-server-status', { running: false });
+            }
+            // 予期しない終了の場合は再起動を試みる
+            if (code !== 0 && !appState.isQuitting) {
+                console.log('APIサーバーが予期せず終了しました。再起動を試みます...');
+                setTimeout(() => {
+                    startPythonApiServer();
+                }, 3000); // 3秒後に再起動
+            }
+        });
+        // プロセスエラー時のリスナー
+        pythonProcess.on('error', (err) => {
+            console.error('Pythonプロセス起動エラー:', err);
+            appState.apiServerRunning = false;
+            // メインウィンドウにエラー通知を送信
+            if (mainWindow) {
+                mainWindow.webContents.send('api-server-status', {
+                    running: false,
+                    error: err.message
+                });
+            }
+        });
+        // 起動を待機（最大10秒）
+        let attempts = 0;
+        const maxAttempts = 20; // 10秒 (500ms x 20)
+        return new Promise((resolve) => {
+            const checkInterval = setInterval(() => {
+                if (appState.apiServerRunning) {
+                    clearInterval(checkInterval);
+                    resolve(true);
+                }
+                else if (attempts >= maxAttempts) {
+                    clearInterval(checkInterval);
+                    console.error('APIサーバーの起動がタイムアウトしました');
+                    resolve(false);
+                }
+                attempts++;
+            }, 500);
+        });
+    }
+    catch (error) {
+        console.error('APIサーバー起動エラー:', error);
+        return false;
+    }
+};
+// Pythonサーバーを停止する関数
+const stopPythonApiServer = () => {
+    if (pythonProcess) {
+        console.log('Pythonサーバーを停止します...');
+        // Windowsの場合はツリーキルが必要
+        if (process.platform === 'win32') {
+            try {
+                childProcess.exec(`taskkill /pid ${pythonProcess.pid} /T /F`);
+            }
+            catch (error) {
+                console.error('プロセスツリーキルエラー:', error);
+            }
+        }
+        else {
+            // UNIX系OSの場合は親プロセスだけでなくプロセスグループ全体を終了させる
+            try {
+                if (pythonProcess.pid !== undefined) {
+                    process.kill(-pythonProcess.pid, 'SIGTERM');
+                }
+                else {
+                    console.warn('プロセスPIDが未定義のため終了できません');
+                }
+            }
+            catch (error) {
+                console.error('プロセスグループ終了エラー:', error);
+            }
+        }
+        pythonProcess = null;
+        appState.apiServerRunning = false;
     }
 };
 // メインウィンドウの型定義
@@ -180,293 +349,23 @@ const compressFolder = async (request) => {
         };
     }
 };
-// 月別フォルダー一覧を取得する関数
-const getMonthlyFolders = async (request) => {
-    try {
-        const { basePath, includeCurrent = false } = request;
-        // 基準パスが指定されていない場合はエラー
-        if (!basePath) {
-            return { success: false, error: 'ベースフォルダパスが指定されていません' };
-        }
-        // フォルダの存在確認
-        if (!fs.existsSync(basePath)) {
-            return { success: false, error: '指定されたフォルダが存在しません' };
-        }
-        // 現在の年月を取得
-        const now = new Date();
-        const currentYearMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-        // フォルダ一覧を取得
-        const folders = [];
-        const entries = fs.readdirSync(basePath, { withFileTypes: true });
-        for (const entry of entries) {
-            if (entry.isDirectory()) {
-                const folderName = entry.name;
-                // YYYY-MM形式のフォルダ名を検出
-                if (folderName.length === 7 && folderName[4] === '-' && !isNaN(Number(folderName.slice(0, 4))) && !isNaN(Number(folderName.slice(5)))) {
-                    // 現在月を除外するオプションがある場合
-                    if (!includeCurrent && folderName === currentYearMonth) {
-                        continue;
-                    }
-                    // フォルダ情報を取得
-                    const folderPath = path.join(basePath, folderName);
-                    let fileCount = 0;
-                    let folderSize = 0;
-                    // フォルダサイズと内容を計算
-                    // 注: 大規模フォルダの場合は非常に時間がかかる可能性があるため、実際の実装ではより効率的な方法が必要
-                    try {
-                        const walkFolder = (dirPath) => {
-                            const items = fs.readdirSync(dirPath, { withFileTypes: true });
-                            for (const item of items) {
-                                const itemPath = path.join(dirPath, item.name);
-                                if (item.isFile()) {
-                                    fileCount++;
-                                    folderSize += fs.statSync(itemPath).size;
-                                }
-                                else if (item.isDirectory()) {
-                                    walkFolder(itemPath);
-                                }
-                            }
-                        };
-                        walkFolder(folderPath);
-                        // フォルダ情報をリストに追加
-                        folders.push({
-                            name: folderName,
-                            path: folderPath,
-                            fileCount,
-                            size: folderSize,
-                            sizeFormatted: formatSize(folderSize),
-                            lastModified: fs.statSync(folderPath).mtime.toISOString()
-                        });
-                    }
-                    catch (err) {
-                        console.error(`フォルダ情報取得エラー ${folderName}:`, err);
-                    }
-                }
-            }
-        }
-        // 新しいものから順に並べ替え
-        folders.sort((a, b) => b.name.localeCompare(a.name));
-        return { success: true, data: folders };
+// APIサーバーステータスを取得するハンドラー
+electron_1.ipcMain.handle('get-api-server-status', () => {
+    return {
+        running: appState.apiServerRunning,
+        port: appState.apiServerPort
+    };
+});
+// APIサーバーの再起動を要求するハンドラー
+electron_1.ipcMain.handle('restart-api-server', async () => {
+    if (appState.apiServerRunning) {
+        stopPythonApiServer();
+        // 少し待機してから再起動
+        await new Promise(resolve => setTimeout(resolve, 1000));
     }
-    catch (error) {
-        console.error('月別フォルダ取得エラー:', error);
-        return {
-            success: false,
-            error: error instanceof Error ? error.message : 'Unknown error'
-        };
-    }
-};
-// ファイルサイズのフォーマット関数
-const formatSize = (sizeInBytes) => {
-    if (sizeInBytes < 1024) {
-        return `${sizeInBytes} B`;
-    }
-    else if (sizeInBytes < 1024 * 1024) {
-        return `${(sizeInBytes / 1024).toFixed(1)} KB`;
-    }
-    else if (sizeInBytes < 1024 * 1024 * 1024) {
-        return `${(sizeInBytes / (1024 * 1024)).toFixed(1)} MB`;
-    }
-    else {
-        return `${(sizeInBytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
-    }
-};
-// APIリクエストを処理する関数
-const handleApiCall = async (request) => {
-    var _a;
-    try {
-        console.log('API呼び出し:', request);
-        // フォルダ一覧取得のエンドポイント
-        if (request.endpoint === 'folders' && request.method === 'GET') {
-            return getFolders((_a = request.data) === null || _a === void 0 ? void 0 : _a.path);
-        }
-        // 月別フォルダ一覧取得のエンドポイント
-        if (request.endpoint === 'monthlyFolders' && request.method === 'GET') {
-            return getMonthlyFolders(request.data);
-        }
-        // 圧縮処理のエンドポイント
-        if (request.endpoint === 'compress' && request.method === 'RUN') {
-            return compressFolder(request.data);
-        }
-        // テンプレート関連のエンドポイント処理
-        if (request.endpoint === 'templates') {
-            const userDataPath = electron_1.app.getPath('userData');
-            const mainSettingsPath = path.join(userDataPath, 'appsettings.json');
-            // 設定ファイルがなければ作成
-            if (!fs.existsSync(mainSettingsPath)) {
-                fs.writeFileSync(mainSettingsPath, JSON.stringify({ main: { templates: [] } }, null, 2));
-            }
-            // 設定を読み込む
-            const settings = JSON.parse(fs.readFileSync(mainSettingsPath, 'utf8'));
-            // mainセクションがなければ初期化
-            if (!settings.main) {
-                settings.main = { templates: [] };
-            }
-            // templatesセクションがなければ初期化
-            if (!settings.main.templates) {
-                settings.main.templates = [];
-            }
-            // GET - テンプレート一覧取得
-            if (request.method === 'GET') {
-                return {
-                    success: true,
-                    data: settings.main.templates
-                };
-            }
-            // POST - テンプレート追加
-            if (request.method === 'POST') {
-                const { name, content } = request.data;
-                if (!name || !content) {
-                    return {
-                        success: false,
-                        error: 'テンプレート名と内容は必須です'
-                    };
-                }
-                // 新しいテンプレートを作成
-                const newTemplate = {
-                    id: `template-${Date.now()}`,
-                    name,
-                    content,
-                    createdAt: new Date().toISOString(),
-                    updatedAt: new Date().toISOString()
-                };
-                // テンプレート配列に追加
-                settings.main.templates.push(newTemplate);
-                // ファイルに保存
-                fs.writeFileSync(mainSettingsPath, JSON.stringify(settings, null, 2));
-                return {
-                    success: true,
-                    data: newTemplate
-                };
-            }
-            // PUT - テンプレート更新
-            if (request.method === 'PUT') {
-                const { id, name, content } = request.data;
-                if (!id || !name || !content) {
-                    return {
-                        success: false,
-                        error: 'テンプレートID、名前、内容は必須です'
-                    };
-                }
-                // テンプレートを検索
-                const templateIndex = settings.main.templates.findIndex((t) => t.id === id);
-                if (templateIndex === -1) {
-                    return {
-                        success: false,
-                        error: '指定されたテンプレートが見つかりません'
-                    };
-                }
-                // テンプレートを更新
-                const updatedTemplate = {
-                    ...settings.main.templates[templateIndex],
-                    name,
-                    content,
-                    updatedAt: new Date().toISOString()
-                };
-                settings.main.templates[templateIndex] = updatedTemplate;
-                // ファイルに保存
-                fs.writeFileSync(mainSettingsPath, JSON.stringify(settings, null, 2));
-                return {
-                    success: true,
-                    data: updatedTemplate
-                };
-            }
-            // DELETE - テンプレート削除
-            if (request.method === 'DELETE') {
-                const { id } = request.data;
-                if (!id) {
-                    return {
-                        success: false,
-                        error: 'テンプレートIDは必須です'
-                    };
-                }
-                // テンプレートを検索
-                const originalLength = settings.main.templates.length;
-                settings.main.templates = settings.main.templates.filter((t) => t.id !== id);
-                if (settings.main.templates.length === originalLength) {
-                    return {
-                        success: false,
-                        error: '指定されたテンプレートが見つかりません'
-                    };
-                }
-                // ファイルに保存
-                fs.writeFileSync(mainSettingsPath, JSON.stringify(settings, null, 2));
-                return {
-                    success: true
-                };
-            }
-            // 投稿文生成
-            if (request.method === 'generate-text') {
-                const { templateId, imageIds } = request.data;
-                if (!templateId || !imageIds || !Array.isArray(imageIds) || imageIds.length === 0) {
-                    return {
-                        success: false,
-                        error: 'テンプレートIDと画像IDは必須です'
-                    };
-                }
-                // テンプレートを検索
-                const template = settings.main.templates.find((t) => t.id === templateId);
-                if (!template) {
-                    return {
-                        success: false,
-                        error: '指定されたテンプレートが見つかりません'
-                    };
-                }
-                // ダミーのメタデータ（実際の実装ではDBから取得）
-                const dummyMetadata = {
-                    worldName: 'サンプルワールド',
-                    worldId: 'wrld_00000000-0000-0000-0000-000000000000',
-                    captureTime: new Date().toLocaleString(),
-                    friends: '友人A, 友人B',
-                    fileName: 'VRChat_Sample'
-                };
-                // 選択された画像の枚数
-                const imageCount = imageIds.length;
-                const imageCountStr = imageCount.toString();
-                // ワールドURLを生成
-                const worldUrl = `https://vrchat.com/home/launch?worldId=${dummyMetadata.worldId}`;
-                // テンプレートを処理 - $count$ を確実に置換
-                let generatedText = template.content
-                    .replace(/\$world_name\$/g, dummyMetadata.worldName)
-                    .replace(/\$world_id\$/g, dummyMetadata.worldId)
-                    .replace(/\$world_url\$/g, worldUrl)
-                    .replace(/\$capture_time\$/g, dummyMetadata.captureTime)
-                    .replace(/\$friends\$/g, dummyMetadata.friends)
-                    .replace(/\$file_name\$/g, dummyMetadata.fileName)
-                    .replace(/\$count\$/g, imageCountStr); // 画像の枚数で$count$を置き換え
-                // 文字列の中に "$count$" が残っていれば、再度置換を試みる
-                if (generatedText.includes('$count$')) {
-                    generatedText = generatedText.replace(/\$count\$/g, imageCountStr);
-                }
-                console.log('生成されたテキスト:', generatedText); // デバッグ用ログ
-                console.log('画像枚数:', imageCount); // デバッグ用ログ
-                return {
-                    success: true,
-                    data: { text: generatedText }
-                };
-            }
-            return {
-                success: false,
-                error: '不明なメソッドです'
-            };
-        }
-        // その他のエンドポイントのハンドリング（既存の処理）
-        return {
-            success: true,
-            data: {
-                message: 'API呼び出し成功',
-                requestData: request
-            }
-        };
-    }
-    catch (error) {
-        console.error('API呼び出しエラー:', error);
-        return {
-            success: false,
-            error: error instanceof Error ? error.message : 'Unknown error'
-        };
-    }
-};
+    const success = await startPythonApiServer();
+    return { success };
+});
 // メインウィンドウ作成関数
 function createWindow() {
     // テーマ設定を読み込む
@@ -762,8 +661,435 @@ electron_1.ipcMain.handle('check-preload', () => {
         return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
     }
 });
+// 写真取り込み関連のAPIハンドラー追加
+electron_1.ipcMain.handle('import-photos', async (_, request) => {
+    try {
+        console.log('写真取り込みリクエスト:', request);
+        // フォルダダイアログを表示して写真フォルダを選択
+        const result = await electron_1.dialog.showOpenDialog({
+            properties: ['openDirectory', 'multiSelections'],
+            title: '取り込む写真フォルダを選択'
+        });
+        if (result.canceled || result.filePaths.length === 0) {
+            return { success: false, message: '操作がキャンセルされました' };
+        }
+        // 選択されたフォルダパスを取得
+        const selectedPaths = result.filePaths;
+        console.log('選択されたフォルダ:', selectedPaths);
+        // 設定ファイルを読み込む
+        const userDataPath = electron_1.app.getPath('userData');
+        const appSettingsPath = path.join(userDataPath, 'appsettings.json');
+        let settings = { inputPictureFolders: [] };
+        if (fs.existsSync(appSettingsPath)) {
+            settings = JSON.parse(fs.readFileSync(appSettingsPath, 'utf8'));
+        }
+        // 既存の入力フォルダ配列を取得または初期化
+        if (!settings.inputPictureFolders) {
+            settings.inputPictureFolders = [];
+        }
+        // 選択されたパスを設定に追加（重複を除去）
+        const updatedFolders = [...new Set([...settings.inputPictureFolders, ...selectedPaths])];
+        settings.inputPictureFolders = updatedFolders;
+        // 設定を保存
+        fs.writeFileSync(appSettingsPath, JSON.stringify(settings, null, 2));
+        return {
+            success: true,
+            data: {
+                selectedPaths,
+                inputPictureFolders: updatedFolders
+            }
+        };
+    }
+    catch (error) {
+        console.error('写真取り込みエラー:', error);
+        return {
+            success: false,
+            error: error instanceof Error ? error.message : 'Unknown error'
+        };
+    }
+});
+// 入力フォルダ一覧を取得するハンドラー
+electron_1.ipcMain.handle('get-input-folders', async () => {
+    try {
+        const userDataPath = electron_1.app.getPath('userData');
+        const appSettingsPath = path.join(userDataPath, 'appsettings.json');
+        if (fs.existsSync(appSettingsPath)) {
+            const settings = JSON.parse(fs.readFileSync(appSettingsPath, 'utf8'));
+            return {
+                success: true,
+                data: settings.inputPictureFolders || []
+            };
+        }
+        return { success: true, data: [] };
+    }
+    catch (error) {
+        console.error('入力フォルダ取得エラー:', error);
+        return {
+            success: false,
+            error: error instanceof Error ? error.message : 'Unknown error'
+        };
+    }
+});
+// 入力フォルダから削除するハンドラー
+electron_1.ipcMain.handle('remove-input-folder', async (_, folderPath) => {
+    try {
+        const userDataPath = electron_1.app.getPath('userData');
+        const appSettingsPath = path.join(userDataPath, 'appsettings.json');
+        if (fs.existsSync(appSettingsPath)) {
+            const settings = JSON.parse(fs.readFileSync(appSettingsPath, 'utf8'));
+            if (settings.inputPictureFolders) {
+                // 指定されたフォルダを配列から削除
+                settings.inputPictureFolders = settings.inputPictureFolders.filter((path) => path !== folderPath);
+                // 設定を保存
+                fs.writeFileSync(appSettingsPath, JSON.stringify(settings, null, 2));
+            }
+            return {
+                success: true,
+                data: settings.inputPictureFolders
+            };
+        }
+        return { success: false, error: '設定ファイルが見つかりません' };
+    }
+    catch (error) {
+        console.error('フォルダ削除エラー:', error);
+        return {
+            success: false,
+            error: error instanceof Error ? error.message : 'Unknown error'
+        };
+    }
+});
+// 写真スキャン処理を実行するハンドラー
+electron_1.ipcMain.handle('scan-photos', async () => {
+    try {
+        // APIサーバーが起動しているか確認
+        if (!appState.apiServerRunning) {
+            console.log('APIサーバーが起動していないため、起動を試みます');
+            const started = await startPythonApiServer();
+            if (!started) {
+                return { success: false, error: 'APIサーバーの起動に失敗しました' };
+            }
+        }
+        // 設定から入力フォルダを取得
+        const userDataPath = electron_1.app.getPath('userData');
+        const appSettingsPath = path.join(userDataPath, 'appsettings.json');
+        if (!fs.existsSync(appSettingsPath)) {
+            return { success: false, error: '設定ファイルが見つかりません' };
+        }
+        const settings = JSON.parse(fs.readFileSync(appSettingsPath, 'utf8'));
+        const inputFolders = settings.inputPictureFolders || [];
+        if (inputFolders.length === 0) {
+            return { success: false, error: '写真フォルダが設定されていません' };
+        }
+        // スキャン開始メッセージをレンダラープロセスに送信
+        if (mainWindow) {
+            mainWindow.webContents.send('photos-scan-status', {
+                status: 'scanning',
+                message: 'スキャンを開始しています...'
+            });
+        }
+        // API呼び出し関数
+        const callApi = (endpoint, method, data) => {
+            return new Promise((resolve, reject) => {
+                const options = {
+                    hostname: 'localhost',
+                    port: appState.apiServerPort,
+                    path: endpoint,
+                    method: method,
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                };
+                const req = http.request(options, (res) => {
+                    let responseData = '';
+                    res.on('data', (chunk) => {
+                        responseData += chunk;
+                    });
+                    res.on('end', () => {
+                        try {
+                            const data = JSON.parse(responseData);
+                            resolve(data);
+                        }
+                        catch (error) {
+                            reject(new Error('レスポンスの解析に失敗しました: ' + responseData));
+                        }
+                    });
+                });
+                req.on('error', (error) => {
+                    reject(error);
+                });
+                if (data) {
+                    req.write(JSON.stringify(data));
+                }
+                req.end();
+            });
+        };
+        // 写真スキャンAPIを呼び出し
+        const scanResult = await callApi('/api/photos/scan', 'POST', { folders: inputFolders });
+        // スキャン完了メッセージをレンダラープロセスに送信
+        if (mainWindow) {
+            mainWindow.webContents.send('photos-scan-status', {
+                status: 'completed',
+                message: 'スキャンが完了しました',
+                result: scanResult
+            });
+        }
+        return {
+            success: true,
+            data: scanResult
+        };
+    }
+    catch (error) {
+        console.error('写真スキャンエラー:', error);
+        // エラーメッセージをレンダラープロセスに送信
+        if (mainWindow) {
+            mainWindow.webContents.send('photos-scan-status', {
+                status: 'error',
+                message: error instanceof Error ? error.message : '不明なエラーが発生しました'
+            });
+        }
+        return {
+            success: false,
+            error: error instanceof Error ? error.message : 'Unknown error'
+        };
+    }
+});
+// ファイルサイズのフォーマット関数
+const formatSize = (sizeInBytes) => {
+    if (sizeInBytes < 1024) {
+        return `${sizeInBytes} B`;
+    }
+    else if (sizeInBytes < 1024 * 1024) {
+        return `${(sizeInBytes / 1024).toFixed(1)} KB`;
+    }
+    else if (sizeInBytes < 1024 * 1024 * 1024) {
+        return `${(sizeInBytes / (1024 * 1024)).toFixed(1)} MB`;
+    }
+    else {
+        return `${(sizeInBytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+    }
+};
+// APIリクエストを処理する関数
+const handleApiCall = async (request) => {
+    var _a;
+    try {
+        console.log('API呼び出し:', request);
+        // フォルダ一覧取得のエンドポイント
+        if (request.endpoint === 'folders' && request.method === 'GET') {
+            return getFolders((_a = request.data) === null || _a === void 0 ? void 0 : _a.path);
+        }
+        // 月別フォルダ一覧取得のエンドポイント
+        if (request.endpoint === 'monthlyFolders' && request.method === 'GET') {
+            return getMonthlyFolders(request.data);
+        }
+        // 圧縮処理のエンドポイント
+        if (request.endpoint === 'compress' && request.method === 'RUN') {
+            return compressFolder(request.data);
+        }
+        // テンプレート関連のエンドポイント処理
+        if (request.endpoint === 'templates') {
+            const userDataPath = electron_1.app.getPath('userData');
+            const mainSettingsPath = path.join(userDataPath, 'appsettings.json');
+            // 設定ファイルがなければ作成
+            if (!fs.existsSync(mainSettingsPath)) {
+                fs.writeFileSync(mainSettingsPath, JSON.stringify({ main: { templates: [] } }, null, 2));
+            }
+            // 設定を読み込む
+            const settings = JSON.parse(fs.readFileSync(mainSettingsPath, 'utf8'));
+            // mainセクションがなければ初期化
+            if (!settings.main) {
+                settings.main = { templates: [] };
+            }
+            // templatesセクションがなければ初期化
+            if (!settings.main.templates) {
+                settings.main.templates = [];
+            }
+            // GET - テンプレート一覧取得
+            if (request.method === 'GET') {
+                return {
+                    success: true,
+                    data: settings.main.templates
+                };
+            }
+            // POST - テンプレート追加
+            if (request.method === 'POST') {
+                const { name, content } = request.data;
+                if (!name || !content) {
+                    return {
+                        success: false,
+                        error: 'テンプレート名と内容は必須です'
+                    };
+                }
+                // 新しいテンプレートを作成
+                const newTemplate = {
+                    id: `template-${Date.now()}`,
+                    name,
+                    content,
+                    createdAt: new Date().toISOString(),
+                    updatedAt: new Date().toISOString()
+                };
+                // テンプレート配列に追加
+                settings.main.templates.push(newTemplate);
+                // ファイルに保存
+                fs.writeFileSync(mainSettingsPath, JSON.stringify(settings, null, 2));
+                return {
+                    success: true,
+                    data: newTemplate
+                };
+            }
+            // PUT - テンプレート更新
+            if (request.method === 'PUT') {
+                const { id, name, content } = request.data;
+                if (!id || !name || !content) {
+                    return {
+                        success: false,
+                        error: 'テンプレートID、名前、内容は必須です'
+                    };
+                }
+                // テンプレートを検索
+                const templateIndex = settings.main.templates.findIndex((t) => t.id === id);
+                if (templateIndex === -1) {
+                    return {
+                        success: false,
+                        error: '指定されたテンプレートが見つかりません'
+                    };
+                }
+                // テンプレートを更新
+                const updatedTemplate = {
+                    ...settings.main.templates[templateIndex],
+                    name,
+                    content,
+                    updatedAt: new Date().toISOString()
+                };
+                settings.main.templates[templateIndex] = updatedTemplate;
+                // ファイルに保存
+                fs.writeFileSync(mainSettingsPath, JSON.stringify(settings, null, 2));
+                return {
+                    success: true,
+                    data: updatedTemplate
+                };
+            }
+            // DELETE - テンプレート削除
+            if (request.method === 'DELETE') {
+                const { id } = request.data;
+                if (!id) {
+                    return {
+                        success: false,
+                        error: 'テンプレートIDは必須です'
+                    };
+                }
+                // テンプレートを検索
+                const originalLength = settings.main.templates.length;
+                settings.main.templates = settings.main.templates.filter((t) => t.id !== id);
+                if (settings.main.templates.length === originalLength) {
+                    return {
+                        success: false,
+                        error: '指定されたテンプレートが見つかりません'
+                    };
+                }
+                // ファイルに保存
+                fs.writeFileSync(mainSettingsPath, JSON.stringify(settings, null, 2));
+                return {
+                    success: true
+                };
+            }
+            // 投稿文生成
+            if (request.method === 'generate-text') {
+                const { templateId, imageIds } = request.data;
+                if (!templateId || !imageIds || !Array.isArray(imageIds) || imageIds.length === 0) {
+                    return {
+                        success: false,
+                        error: 'テンプレートIDと画像IDは必須です'
+                    };
+                }
+                // テンプレートを検索
+                const template = settings.main.templates.find((t) => t.id === templateId);
+                if (!template) {
+                    return {
+                        success: false,
+                        error: '指定されたテンプレートが見つかりません'
+                    };
+                }
+                // ダミーのメタデータ（実際の実装ではDBから取得）
+                const dummyMetadata = {
+                    worldName: 'サンプルワールド',
+                    worldId: 'wrld_00000000-0000-0000-0000-000000000000',
+                    captureTime: new Date().toLocaleString(),
+                    friends: '友人A, 友人B',
+                    fileName: 'VRChat_Sample'
+                };
+                // 選択された画像の枚数
+                const imageCount = imageIds.length;
+                const imageCountStr = imageCount.toString();
+                // ワールドURLを生成
+                const worldUrl = `https://vrchat.com/home/launch?worldId=${dummyMetadata.worldId}`;
+                // テンプレートを処理 - $count$ を確実に置換
+                let generatedText = template.content
+                    .replace(/\$world_name\$/g, dummyMetadata.worldName)
+                    .replace(/\$world_id\$/g, dummyMetadata.worldId)
+                    .replace(/\$world_url\$/g, worldUrl)
+                    .replace(/\$capture_time\$/g, dummyMetadata.captureTime)
+                    .replace(/\$friends\$/g, dummyMetadata.friends)
+                    .replace(/\$file_name\$/g, dummyMetadata.fileName)
+                    .replace(/\$count\$/g, imageCountStr); // 画像の枚数で$count$を置き換え
+                console.log('生成されたテキスト:', generatedText); // デバッグ用ログ
+                console.log('画像枚数:', imageCount); // デバッグ用ログ
+                return {
+                    success: true,
+                    data: { text: generatedText }
+                };
+            }
+            return {
+                success: false,
+                error: '不明なメソッドです'
+            };
+        }
+        // 拡張機能の検索・インストール（開発用）
+        if (request.endpoint === 'extensions') {
+            if (request.method === 'SEARCH') {
+                const dummyExtensions = [
+                    { id: 'ext1', name: 'サンプル拡張機能1', description: '説明テキスト1', version: '1.0.0' },
+                    { id: 'ext2', name: 'サンプル拡張機能2', description: '説明テキスト2', version: '1.2.0' }
+                ];
+                return {
+                    success: true,
+                    data: dummyExtensions
+                };
+            }
+            if (request.method === 'INSTALL') {
+                const { id } = request.data;
+                if (!id) {
+                    return { success: false, error: '拡張機能IDは必須です' };
+                }
+                // 拡張機能のインストールをシミュレート
+                return {
+                    success: true,
+                    data: {
+                        id,
+                        status: 'installed',
+                        message: `拡張機能 ${id} がインストールされました。`
+                    }
+                };
+            }
+        }
+        // その他のエンドポイントのハンドリング（既存の処理）
+        return {
+            success: true,
+            data: {
+                message: 'API呼び出し成功',
+                requestData: request
+            }
+        };
+    }
+    catch (error) {
+        console.error('API呼び出しエラー:', error);
+        return {
+            success: false,
+            error: error instanceof Error ? error.message : 'Unknown error'
+        };
+    }
+};
 // アプリケーション起動時の処理
-electron_1.app.on('ready', () => {
+electron_1.app.on('ready', async () => {
     console.log('===== Electron アプリ起動開始 =====');
     // アプリケーションデータディレクトリの準備
     const userDataPath = electron_1.app.getPath('userData');
@@ -777,6 +1103,9 @@ electron_1.app.on('ready', () => {
     const flagFilePath = path.join(userDataPath, '.app_running');
     fs.writeFileSync(flagFilePath, new Date().toISOString());
     console.log('起動フラグファイル作成:', flagFilePath);
+    // Pythonバックエンドサーバーを起動
+    console.log('バックエンドAPIサーバーの起動を開始します');
+    await startPythonApiServer();
     // メインウィンドウを作成
     console.log('メインウィンドウ作成開始');
     createWindow();
@@ -784,6 +1113,10 @@ electron_1.app.on('ready', () => {
 });
 // アプリ終了時にフラグファイルを削除
 electron_1.app.on('will-quit', () => {
+    // 終了フラグを設定
+    appState.isQuitting = true;
+    // Pythonバックエンドサーバーを停止
+    stopPythonApiServer();
     try {
         const userDataPath = electron_1.app.getPath('userData');
         const flagFilePath = path.join(userDataPath, '.app_running');
@@ -807,4 +1140,7 @@ electron_1.app.on('activate', () => {
         createWindow();
     }
 });
+function getMonthlyFolders(data) {
+    throw new Error('Function not implemented.');
+}
 //# sourceMappingURL=main.js.map

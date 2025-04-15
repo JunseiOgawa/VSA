@@ -86,7 +86,7 @@ const Settings: React.FC = () => {
     if (window.electronAPI) {
       try {
         const result = await window.electronAPI.browseFolder();
-        if (result.success && result.data.filePaths && result.data.filePaths.length > 0) {
+        if (result.success && result.data && result.data.filePaths && result.data.filePaths.length > 0) {
           setSettings({
             ...settings,
             [setting]: result.data.filePaths[0]

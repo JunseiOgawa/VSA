@@ -35,6 +35,62 @@ try {
                 nodeVersion: process.versions.node,
             };
         },
+        // 写真取り込み機能
+        importPhotos: (options) => {
+            debugLog('写真フォルダ選択ダイアログ呼び出し', options);
+            return electron_1.ipcRenderer.invoke('import-photos', options);
+        },
+        // 入力フォルダ一覧を取得
+        getInputFolders: () => {
+            debugLog('入力フォルダ一覧取得');
+            return electron_1.ipcRenderer.invoke('get-input-folders');
+        },
+        // 入力フォルダを削除
+        removeInputFolder: (folderPath) => {
+            debugLog('入力フォルダ削除:', folderPath);
+            return electron_1.ipcRenderer.invoke('remove-input-folder', folderPath);
+        },
+        // 写真スキャン実行
+        scanPhotos: () => {
+            debugLog('写真スキャン実行');
+            return electron_1.ipcRenderer.invoke('scan-photos');
+        },
+        // APIサーバーステータス取得
+        getApiServerStatus: () => {
+            debugLog('APIサーバーステータス取得');
+            return electron_1.ipcRenderer.invoke('get-api-server-status');
+        },
+        // APIサーバー再起動
+        restartApiServer: () => {
+            debugLog('APIサーバー再起動');
+            return electron_1.ipcRenderer.invoke('restart-api-server');
+        },
+        // 写真スキャンステータス通知リスナー
+        onPhotosScanStatus: (callback) => {
+            debugLog('写真スキャンステータスリスナー設定');
+            electron_1.ipcRenderer.on('photos-scan-status', (_, data) => {
+                debugLog('写真スキャンステータス受信:', data);
+                callback(data);
+            });
+            // クリーンアップ関数を返す
+            return () => {
+                debugLog('写真スキャンステータスリスナー削除');
+                electron_1.ipcRenderer.removeAllListeners('photos-scan-status');
+            };
+        },
+        // APIサーバーステータス通知リスナー
+        onApiServerStatus: (callback) => {
+            debugLog('APIサーバーステータスリスナー設定');
+            electron_1.ipcRenderer.on('api-server-status', (_, data) => {
+                debugLog('APIサーバーステータス受信:', data);
+                callback(data);
+            });
+            // クリーンアップ関数を返す
+            return () => {
+                debugLog('APIサーバーステータスリスナー削除');
+                electron_1.ipcRenderer.removeAllListeners('api-server-status');
+            };
+        },
         // アプリケーションイベント
         onStatusUpdate: (callback) => {
             debugLog('ステータス更新リスナー設定');

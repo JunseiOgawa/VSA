@@ -54,6 +54,72 @@ try {
         nodeVersion: process.versions.node,
       };
     },
+    
+    // 写真取り込み機能
+    importPhotos: (options?: any) => {
+      debugLog('写真フォルダ選択ダイアログ呼び出し', options);
+      return ipcRenderer.invoke('import-photos', options);
+    },
+    
+    // 入力フォルダ一覧を取得
+    getInputFolders: () => {
+      debugLog('入力フォルダ一覧取得');
+      return ipcRenderer.invoke('get-input-folders');
+    },
+    
+    // 入力フォルダを削除
+    removeInputFolder: (folderPath: string) => {
+      debugLog('入力フォルダ削除:', folderPath);
+      return ipcRenderer.invoke('remove-input-folder', folderPath);
+    },
+    
+    // 写真スキャン実行
+    scanPhotos: () => {
+      debugLog('写真スキャン実行');
+      return ipcRenderer.invoke('scan-photos');
+    },
+    
+    // APIサーバーステータス取得
+    getApiServerStatus: () => {
+      debugLog('APIサーバーステータス取得');
+      return ipcRenderer.invoke('get-api-server-status');
+    },
+    
+    // APIサーバー再起動
+    restartApiServer: () => {
+      debugLog('APIサーバー再起動');
+      return ipcRenderer.invoke('restart-api-server');
+    },
+    
+    // 写真スキャンステータス通知リスナー
+    onPhotosScanStatus: (callback: (data: any) => void) => {
+      debugLog('写真スキャンステータスリスナー設定');
+      ipcRenderer.on('photos-scan-status', (_, data) => {
+        debugLog('写真スキャンステータス受信:', data);
+        callback(data);
+      });
+      
+      // クリーンアップ関数を返す
+      return () => {
+        debugLog('写真スキャンステータスリスナー削除');
+        ipcRenderer.removeAllListeners('photos-scan-status');
+      };
+    },
+    
+    // APIサーバーステータス通知リスナー
+    onApiServerStatus: (callback: (data: any) => void) => {
+      debugLog('APIサーバーステータスリスナー設定');
+      ipcRenderer.on('api-server-status', (_, data) => {
+        debugLog('APIサーバーステータス受信:', data);
+        callback(data);
+      });
+      
+      // クリーンアップ関数を返す
+      return () => {
+        debugLog('APIサーバーステータスリスナー削除');
+        ipcRenderer.removeAllListeners('api-server-status');
+      };
+    },
       
     // アプリケーションイベント
     onStatusUpdate: (callback: (data: any) => void) => {

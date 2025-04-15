@@ -61,7 +61,7 @@ const PathSection: React.FC<PathSectionProps> = ({ settings, onSettingsChange })
       // Electron APIを使用してフォルダ選択ダイアログを表示
       const result = await window.electronAPI.browseFolder();
       
-      if (result.success && result.data.filePaths?.length > 0) {
+      if (result.success && result.data && result.data.filePaths?.length > 0) {
         const selectedPath = result.data.filePaths[0];
         
         if (pathType === 'screenshot') {

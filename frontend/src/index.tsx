@@ -6,22 +6,6 @@ import { ThemeProvider } from './contexts/ThemeContext';
 import { TemplateProvider } from './contexts/TemplateContext';
 import { HashRouter } from 'react-router-dom';
 
-// Electron APIの型拡張
-declare global {
-  interface Window {
-    electronAPI: {
-      callApi: (endpoint: string, method: string, data?: any) => Promise<any>;
-      browseFolder: () => Promise<any>;
-      getAppInfo: () => any;
-      onStatusUpdate: (callback: (data: any) => void) => void;
-      isWindowMaximized: () => Promise<boolean>;
-      minimizeWindow: () => void;
-      maximizeWindow: () => void;
-      closeWindow: () => void;
-    }
-  }
-}
-
 // ルート要素の取得
 const rootElement = document.getElementById('root');
 
