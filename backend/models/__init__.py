@@ -1,4 +1,4 @@
-from .image_metadata import ImageMetadata
+from .image_metadata import Image
 from .settings import Settings
-
-__all__ = ['ImageMetadata', 'Settings']
+from .album import Album
+from .composite import Composite

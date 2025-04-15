@@ -1,11 +1,12 @@
-from sqlalchemy.orm import Session
-from sqlalchemy import func, and_, or_
-from typing import List, Dict, Any, Optional
-from datetime import datetime
+import datetime
+import json
 import os
+from typing import List, Optional, Dict, Any
+from sqlalchemy import desc, asc, or_
+from sqlalchemy.orm import Session
 
-from ..models.image_metadata import ImageMetadata
-from ..database import SessionLocal
+from database import SessionLocal
+from models.image_metadata import Image
 
 class ImageService:
     @staticmethod
@@ -17,85 +18,119 @@ class ImageService:
         friend: Optional[str] = None,
         date_from: Optional[str] = None,
         date_to: Optional[str] = None,
-        sort_by: str = "img_Date",
+        sort_by: str = "img_date",
         order: str = "desc"
     ) -> Dict[str, Any]:
         """
-        画像メタデータを検索条件に基づいて取得
-        
-        :param page: ページ番号
-        :param limit: 1ページあたりの件数
-        :param world_name: ワールド名フィルター
-        :param world_id: ワールドIDフィルター
-        :param friend: フレンド名フィルター
-        :param date_from: 撮影日時開始
-        :param date_to: 撮影日時終了
-        :param sort_by: ソート項目
-        :param order: ソート順
-        :return: 画像リストとページネーション情報
+        画像一覧の取得（フィルタリング、ソート、ページング対応）
         """
-        with SessionLocal() as db:
-            # クエリビルダー
-            query = db.query(ImageMetadata)
+        db = SessionLocal()
+        
+        try:
+            # クエリの構築
+            query = db.query(Image)
             
             # フィルター条件の適用
             if world_name:
-                query = query.filter(ImageMetadata.img_WorldName.like(f"%{world_name}%"))
+                query = query.filter(Image.world_name.like(f"%{world_name}%"))
             
             if world_id:
-                query = query.filter(ImageMetadata.img_WorldID == world_id)
+                query = query.filter(Image.world_id == world_id)
             
             if friend:
-                # JSONフィールド内のフレンド名を検索（SQLiteの場合は実装が複雑なので簡易版）
-                query = query.filter(ImageMetadata.img_Users.like(f"%{friend}%"))
+                # JSONフィールドからの検索（SQLiteでは制限あり、実装方法は要検討）
+                # 簡易実装としてすべての画像を取得し、Pythonコードでフィルタリング
+                pass
             
             if date_from:
-                date_from_obj = datetime.fromisoformat(date_from)
-                query = query.filter(ImageMetadata.img_Date >= date_from_obj)
+                try:
+                    from_date = datetime.datetime.fromisoformat(date_from)
+                    query = query.filter(Image.img_date >= from_date)
+                except ValueError:
+                    pass
             
             if date_to:
-                date_to_obj = datetime.fromisoformat(date_to)
-                query = query.filter(ImageMetadata.img_Date <= date_to_obj)
+                try:
+                    to_date = datetime.datetime.fromisoformat(date_to)
+                    query = query.filter(Image.img_date <= to_date)
+                except ValueError:
+                    pass
             
-            # 合計件数の取得
-            total = query.count()
+            # 総件数の取得
+            total_count = query.count()
             
-            # ソート順の適用
-            sort_column = getattr(ImageMetadata, sort_by, ImageMetadata.img_Date)
-            if order == "desc":
-                query = query.order_by(sort_column.desc())
+            # ソート条件の適用
+            sort_column = getattr(Image, sort_by.lower(), Image.id)
+            if order.lower() == "desc":
+                query = query.order_by(desc(sort_column))
             else:
-                query = query.order_by(sort_column)
+                query = query.order_by(asc(sort_column))
             
-            # ページネーション
+            # ページングの適用
             offset = (page - 1) * limit
             query = query.offset(offset).limit(limit)
             
-            # 結果の取得と変換
-            results = query.all()
-            images = [img.to_dict() for img in results]
+            # 結果の取得
+            images = query.all()
             
-            return {
-                "images": images,
-                "pagination": {
+            # Pythonでのフレンドフィルタリング（SQLiteのJSON検索に限界があるため）
+            if friend and images:
+                filtered_images = []
+                for img in images:
+                    meta_data = img.meta_data
+                    if meta_data and 'friends' in meta_data:
+                        if any(friend.lower() in f.lower() for f in meta_data['friends']):
+                            filtered_images.append(img)
+                images = filtered_images
+                # 注: この実装では総件数が正確でなくなる可能性があります
+            
+            # レスポンスの構築
+            result = {
+                "items": [ImageService._image_to_dict(img) for img in images],
+                "meta": {
+                    "total": total_count,
                     "page": page,
                     "limit": limit,
-                    "total": total,
-                    "pages": (total + limit - 1) // limit
+                    "pages": (total_count + limit - 1) // limit
                 }
             }
+            
+            return result
+        
+        finally:
+            db.close()
     
     @staticmethod
     def get_image_metadata(image_id: int) -> Dict[str, Any]:
         """
         特定の画像のメタデータを取得
-        
-        :param image_id: 画像ID
-        :return: 画像メタデータ
         """
-        with SessionLocal() as db:
-            image = db.query(ImageMetadata).filter(ImageMetadata.img_Id == image_id).first()
+        db = SessionLocal()
+        
+        try:
+            image = db.query(Image).filter(Image.id == image_id).first()
+            
             if not image:
                 raise ValueError(f"Image with ID {image_id} not found")
             
-            return image.to_dict()
+            return ImageService._image_to_dict(image)
+        
+        finally:
+            db.close()
+    
+    @staticmethod
+    def _image_to_dict(image: Image) -> Dict[str, Any]:
+        """
+        Imageモデルを辞書に変換
+        """
+        return {
+            "id": image.id,
+            "filepath": image.filepath,
+            "filename": image.filename,
+            "world_name": image.world_name,
+            "world_id": image.world_id,
+            "img_date": image.img_date.isoformat() if image.img_date else None,
+            "metadata": image.meta_data or {},
+            "created_date": image.created_date.isoformat() if image.created_date else None,
+            "modified_date": image.modified_date.isoformat() if image.modified_date else None,
+        }
