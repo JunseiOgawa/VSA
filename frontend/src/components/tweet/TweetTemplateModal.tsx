@@ -172,7 +172,7 @@ const TweetTemplateModal: React.FC<TweetTemplateModalProps> = ({
           
           <Grid container spacing={1} sx={{ mb: 2 }}>
             {variables.map((v) => (
-              <Grid item key={v.variable}>
+              <Grid key={v.variable} size={1}>
                 <Chip 
                   label={`${v.name} (${v.variable})`}
                   onClick={() => insertVariable(v.variable)}

@@ -8,13 +8,7 @@ import {
   Grid, 
   Alert, 
   AlertTitle, 
-  List, 
-  ListItem, 
-  ListItemText, 
-  ListItemSecondaryAction, 
   IconButton,
-  Chip,
-  LinearProgress,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -75,6 +69,17 @@ const Photos: React.FC = () => {
   const [selectedPhotos, setSelectedPhotos] = useState<PhotoData[]>([]);
   const [showTweetGenerator, setShowTweetGenerator] = useState<boolean>(false);
   const { gameName } = useGameConfig();
+  
+  // 追加の状態変数
+  const [photos, setPhotos] = useState<PhotoData[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+  const [inputFolders, setInputFolders] = useState<string[]>([]);
+  const [confirmDeleteFolder, setConfirmDeleteFolder] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [apiServerStatus, setApiServerStatus] = useState<ApiServerStatus>({ running: false });
+  const [showApiErrorDialog, setShowApiErrorDialog] = useState<boolean>(false);
+  const [scanStatus, setScanStatus] = useState<ScanStatus>({ status: 'idle' });
   
   // 写真選択ハンドラ（実際の実装では写真一覧から選択）
   const handleSelectPhoto = (photo: PhotoData) => {
@@ -315,7 +320,7 @@ const Photos: React.FC = () => {
         {photos.length > 0 ? (
           <Grid container spacing={2}>
             {photos.map(photo => (
-              <Grid item key={photo.id} xs={6} sm={4} md={3} lg={2}>
+              <Grid size={{ xs: 6, sm: 4, md: 3, lg: 2 }} key={photo.id}>
                 <Paper
                   elevation={selectedPhotos.some(p => p.id === photo.id) ? 3 : 1}
                   sx={{
@@ -380,7 +385,7 @@ const Photos: React.FC = () => {
             </Typography>
             <Grid container spacing={1}>
               {selectedPhotos.map(photo => (
-                <Grid item key={photo.id} xs={6} sm={4} md={3} lg={2}>
+                <Grid size={{ xs: 6, sm: 4, md: 3, lg: 2 }} key={photo.id}>
                   <Paper
                     elevation={2}
                     sx={{
@@ -435,4 +440,3 @@ const Photos: React.FC = () => {
 
 export default Photos;
 
-export {};

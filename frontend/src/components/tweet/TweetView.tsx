@@ -286,7 +286,7 @@ const TweetView: React.FC = () => {
         
         <Grid container spacing={3}>
           {/* 左パネル - テンプレート管理と写真選択 */}
-          <Grid item xs={12} md={6}>
+          <Grid size={{ xs: 12, md: 6 }}>
             <Box sx={{ mb: 3 }}>
               <Typography variant="h6" gutterBottom>
                 テンプレート選択
@@ -294,7 +294,7 @@ const TweetView: React.FC = () => {
               
               <Grid container spacing={2}>
                 {/* テンプレート選択部分 */}
-                <Grid item xs={12} md={8}>
+                <Grid size={{ xs: 12, md: 8 }}>
                   <FormControl fullWidth variant="outlined">
                     <InputLabel id="template-select-label">テンプレート</InputLabel>
                     <Select
@@ -320,7 +320,7 @@ const TweetView: React.FC = () => {
                 </Grid>
                 
                 {/* テンプレート管理ボタン */}
-                <Grid item xs={12} md={4}>
+                <Grid size={{ xs: 12, md: 4 }}>
                   <Box sx={{ display: 'flex' }}>
                     {selectedTemplate && (
                       <Button 
@@ -419,7 +419,7 @@ const TweetView: React.FC = () => {
           </Grid>
           
           {/* 右パネル - 生成されたテキストと情報 */}
-          <Grid item xs={12} md={6}>
+          <Grid size={{ xs: 12, md: 6 }}>
             <Box sx={{ mb: 3 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
                 <Typography variant="h6">生成された投稿文</Typography>
@@ -572,7 +572,7 @@ const TweetView: React.FC = () => {
           )}
           <Grid container spacing={2}>
             {photos.map(photo => (
-              <Grid item key={photo.id} xs={6} sm={4} md={3}>
+              <Grid size={{ xs: 6, sm: 4, md: 3 }} key={photo.id}>
                 <Card 
                   sx={{ 
                     border: selectedPhotos.some(p => p.id === photo.id) 

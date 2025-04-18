@@ -210,7 +210,7 @@ const TweetGenerator: React.FC<TweetGeneratorProps> = ({ selectedImages = [] }) 
       <Box sx={{ mb: 3 }}>
         <Grid container spacing={2}>
           {/* テンプレート選択部分 */}
-          <Grid item xs={12} md={9}>
+          <Grid size={{ xs: 12, md: 9 }}>
             <FormControl fullWidth variant="outlined">
               <InputLabel id="template-select-label">テンプレート</InputLabel>
               <Select
@@ -236,7 +236,7 @@ const TweetGenerator: React.FC<TweetGeneratorProps> = ({ selectedImages = [] }) 
           </Grid>
           
           {/* テンプレート管理ボタン */}
-          <Grid item xs={12} md={3}>
+          <Grid size={{ xs: 12, md: 3 }}>
             <Box sx={{ display: 'flex' }}>
               {selectedTemplate && (
                 <Button 
@@ -261,7 +261,7 @@ const TweetGenerator: React.FC<TweetGeneratorProps> = ({ selectedImages = [] }) 
           
           {/* 選択された画像のプレビュー */}
           {selectedImages.length > 0 && (
-            <Grid item xs={12}>
+            <Grid size={12}>
               <Typography variant="subtitle1" gutterBottom>
                 選択された画像 ({selectedImages.length}/4枚)
               </Typography>
@@ -282,7 +282,7 @@ const TweetGenerator: React.FC<TweetGeneratorProps> = ({ selectedImages = [] }) 
           )}
           
           {/* 生成ボタン */}
-          <Grid item xs={12}>
+          <Grid size={12}>
             <Button
               variant="contained"
               color="primary"

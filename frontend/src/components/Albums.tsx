@@ -95,7 +95,7 @@ const Albums: React.FC = () => {
         </Typography>
         <Grid container spacing={3}>
           {/* デモ用のダミーカード */}
-          <Grid item xs={12} sm={6} md={4}>
+          <Grid size={{ xs: 12, sm: 6, md: 4 }}>
             <Card variant="outlined">
               <CardContent>
                 <Typography variant="subtitle1" gutterBottom>
@@ -124,7 +124,7 @@ const Albums: React.FC = () => {
           </Grid>
           
           {/* 新規アルバム作成カード */}
-          <Grid item xs={12} sm={6} md={4}>
+          <Grid size={{ xs: 12, sm: 6, md: 4 }}>
             <Card 
               variant="outlined" 
               sx={{ 

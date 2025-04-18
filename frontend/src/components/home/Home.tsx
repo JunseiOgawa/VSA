@@ -104,7 +104,7 @@ const Home: React.FC = () => {
       <Divider sx={{ mb: 3 }} />
       
       <Grid container spacing={3}>
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <FeatureCard 
             title="写真" 
             description="全スクリーンショットの閲覧・検索・管理を行います。" 
@@ -112,7 +112,7 @@ const Home: React.FC = () => {
             onClick={() => handleFeatureClick('photos')}
           />
         </Grid>
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <FeatureCard 
             title="アルバム" 
             description="お気に入りの写真をアルバムとして整理します。" 
@@ -120,7 +120,7 @@ const Home: React.FC = () => {
             onClick={() => handleFeatureClick('albums')}
           />
         </Grid>
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <FeatureCard 
             title="圧縮" 
             description="スクリーンショットのサイズを圧縮して容量を節約します。" 
@@ -128,7 +128,7 @@ const Home: React.FC = () => {
             onClick={() => handleFeatureClick('compress')}
           />
         </Grid>
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <FeatureCard 
             title="ツイート" 
             description="写真からSNS投稿用のテキストを自動生成します。" 
@@ -136,7 +136,7 @@ const Home: React.FC = () => {
             onClick={() => handleFeatureClick('tweet')}
           />
         </Grid>
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <FeatureCard 
             title="高度な検索" 
             description="詳細な条件で写真を検索できます。" 
@@ -144,7 +144,7 @@ const Home: React.FC = () => {
             onClick={() => handleFeatureClick('advanced-search')}
           />
         </Grid>
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <FeatureCard 
             title="設定" 
             description="アプリケーションの各種設定を行います。" 
@@ -160,7 +160,7 @@ const Home: React.FC = () => {
           統計情報
         </Typography>
         <Grid container spacing={2}>
-          <Grid item xs={6} sm={3}>
+          <Grid size={{ xs: 6, sm: 3 }}>
             <Typography variant="body2" color="text.secondary">
               総写真数
             </Typography>
@@ -168,7 +168,7 @@ const Home: React.FC = () => {
               0
             </Typography>
           </Grid>
-          <Grid item xs={6} sm={3}>
+          <Grid size={{ xs: 6, sm: 3 }}>
             <Typography variant="body2" color="text.secondary">
               アルバム数
             </Typography>
@@ -176,7 +176,7 @@ const Home: React.FC = () => {
               0
             </Typography>
           </Grid>
-          <Grid item xs={6} sm={3}>
+          <Grid size={{ xs: 6, sm: 3 }}>
             <Typography variant="body2" color="text.secondary">
               総容量
             </Typography>
@@ -184,7 +184,7 @@ const Home: React.FC = () => {
               0 MB
             </Typography>
           </Grid>
-          <Grid item xs={6} sm={3}>
+          <Grid size={{ xs: 6, sm: 3 }}>
             <Typography variant="body2" color="text.secondary">
               最終更新
             </Typography>

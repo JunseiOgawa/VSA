@@ -93,7 +93,7 @@ const PathSection: React.FC<PathSectionProps> = ({ settings, onSettingsChange })
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
       
       <Grid container spacing={2}>
-        <Grid xs={12}>
+        <Grid size={12}>
           <Box display="flex" alignItems="center">
             <TextField
               label="スクリーンショットフォルダ"
@@ -115,7 +115,7 @@ const PathSection: React.FC<PathSectionProps> = ({ settings, onSettingsChange })
           </Box>
         </Grid>
         
-        <Grid xs={12}>
+        <Grid size={12}>
           <Box display="flex" alignItems="center">
             <TextField
               label="出力先フォルダ"

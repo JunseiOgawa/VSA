@@ -405,7 +405,7 @@ const Compress: React.FC = () => {
       <Box sx={{ mb: 4 }}>
         <Grid container spacing={2}>
           {/* 月別圧縮設定 */}
-          <Grid item xs={12}>
+          <Grid size={12}>
             <Box sx={{ display: 'flex', alignItems: 'center' }}>
               <FormControlLabel
                 control={
@@ -429,7 +429,7 @@ const Compress: React.FC = () => {
           </Grid>
 
           {/* VRChatフォルダ選択 */}
-          <Grid item xs={12}>
+          <Grid size={12}>
             <Typography variant="subtitle2" gutterBottom>
               {gameName}スクリーンショットフォルダ
               <Tooltip 
@@ -465,7 +465,7 @@ const Compress: React.FC = () => {
           
           {/* フォルダビューワー */}
           {vrcFolder && (
-            <Grid item xs={12}>
+            <Grid size={12}>
               <Card variant="outlined" sx={{ mb: 2 }}>
                 <CardContent sx={{ py: 1, px: 2 }}>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
@@ -526,7 +526,7 @@ const Compress: React.FC = () => {
           )}
 
           {/* 出力先フォルダ選択 */}
-          <Grid item xs={12}>
+          <Grid size={12}>
             <Typography variant="subtitle2" gutterBottom>
               圧縮ファイル出力先
               <Tooltip 
@@ -562,7 +562,7 @@ const Compress: React.FC = () => {
           
           {/* 圧縮実行ボタン */}
           {selectedFolders.length > 0 && outputFolder && (
-            <Grid item xs={12} sx={{ mt: 2 }}>
+            <Grid size={12} sx={{ mt: 2 }}>
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                 <Typography variant="body2">
                   選択されたフォルダ: {selectedFolders.length}個
@@ -602,7 +602,7 @@ const Compress: React.FC = () => {
           圧縮設定オプション
         </Typography>
         <Grid container spacing={2}>
-          <Grid item xs={12} md={6}>
+          <Grid size={{ xs: 12, md: 6 }}>
             <FormControlLabel
               control={
                 <Switch 
@@ -613,7 +613,7 @@ const Compress: React.FC = () => {
               label="圧縮後にオリジナルフォルダを削除"
             />
           </Grid>
-          <Grid item xs={12} md={6}>
+          <Grid size={{ xs: 12, md: 6 }}>
             <FormControlLabel
               control={
                 <Switch 

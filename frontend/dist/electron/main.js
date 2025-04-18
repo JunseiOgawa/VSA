@@ -30,7 +30,7 @@ const childProcess = __importStar(require("child_process"));
 const http = __importStar(require("http"));
 const net = __importStar(require("net"));
 // 開発モードかどうかを判定
-const isDev = process.env.NODE_ENV === 'development' && !electron_1.app.isPackaged;
+const isDev = process.env.NODE_ENV !== 'production' || !electron_1.app.isPackaged;
 // Python APIサーバープロセス
 let pythonProcess = null;
 // APIサーバーのポート
@@ -83,9 +83,10 @@ const startPythonApiServer = async () => {
         let pythonScriptPath;
         let pythonExePath;
         if (isDev) {
-            // 開発環境ではプロジェクトフォルダ内のPythonスクリプトを使用
+            // 開発環境ではプロジェクトフォルダ内のPythonスクリプトを使用し、システムのPythonを呼び出す
             pythonScriptPath = path.join(__dirname, '..', '..', 'backend', 'main.py');
-            pythonExePath = 'python'; // システムのPythonを使用
+            // 環境変数のPATHに登録されているpythonを使用
+            pythonExePath = 'python';
         }
         else {
             // 本番環境では同梱されたPythonとスクリプトを使用
@@ -1088,185 +1089,6 @@ const handleApiCall = async (request) => {
         };
     }
 };
-// メインウィンドウ作成関数
-function createWindow() {
-    // テーマ設定を読み込む
-    let darkMode = true;
-    try {
-        const userDataPath = electron_1.app.getPath('userData');
-        const settingsPath = path.join(userDataPath, 'settings.json');
-        if (fs.existsSync(settingsPath)) {
-            const settings = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
-            darkMode = settings.themeMode !== 'light'; // lightでなければdarkモード
-        }
-    }
-    catch (error) {
-        console.error('テーマ設定の読み込みエラー:', error);
-    }
-    // ウィンドウサイズとオプションを設定
-    mainWindow = new electron_1.BrowserWindow({
-        width: 1000,
-        height: 800,
-        minHeight: 400,
-        minWidth: 600,
-        frame: false,
-        backgroundColor: darkMode ? '#121212' : '#f5f5f5',
-        webPreferences: {
-            nodeIntegration: false,
-            contextIsolation: true,
-            preload: path.join(__dirname, './preload.js')
-        },
-    });
-    // 開発モードの場合はReact開発サーバーを読み込む
-    // 本番モードの場合はビルドされたindex.htmlを読み込む
-    if (isDev) {
-        mainWindow.loadURL('http://localhost:3000');
-        console.log('開発モード: Reactサーバーに接続しています');
-        mainWindow.webContents.openDevTools(); // 開発者ツールを自動的に開く
-    }
-    else {
-        // ビルド済みのindex.htmlを読み込む
-        // パスの計算を修正：__dirnameは dist/electron になるので、正しく遡る
-        const indexPath = path.join(__dirname, '../../build/index.html');
-        mainWindow.loadFile(indexPath);
-        console.log(`本番モード: ${indexPath} を読み込みました`);
-    }
-    // ウィンドウのリサイズイベント
-    mainWindow.on('resize', () => {
-        // ウィンドウサイズが変更されたときの処理（必要に応じて）
-    });
-    // ウィンドウが閉じられた時の処理
-    mainWindow.on('closed', () => {
-        mainWindow = null;
-        // ランチャー再起動フラグの作成
-        const userDataPath = electron_1.app.getPath('userData');
-        fs.writeFileSync(path.join(userDataPath, '.launcher_reactivate'), 'closed');
-    });
-}
-// CSSをリロードするIPC通信（開発モード用）
-electron_1.ipcMain.handle('reload-css', () => {
-    if (mainWindow && isDev) {
-        mainWindow.webContents.send('reload-styles');
-        return { success: true };
-    }
-    return { success: false };
-});
-// APIハンドラー登録
-electron_1.ipcMain.handle('call-api', async (_, request) => {
-    const { endpoint, method, data } = request;
-    // 設定関連のエンドポイント処理
-    if (endpoint === 'settings') {
-        try {
-            const userDataPath = electron_1.app.getPath('userData');
-            const settingsPath = path.join(userDataPath, 'settings.json');
-            // 設定の取得
-            if (method === 'GET') {
-                if (fs.existsSync(settingsPath)) {
-                    const settings = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
-                    return { success: true, data: settings };
-                }
-                return { success: true, data: {} };
-            }
-            // 設定の保存
-            if (method === 'SET') {
-                // 既存の設定を読み込む（存在しない場合は空オブジェクト）
-                let settings = {};
-                if (fs.existsSync(settingsPath)) {
-                    settings = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
-                }
-                // 新しい設定をマージ
-                const updatedSettings = { ...settings, ...data };
-                // 設定を保存
-                fs.writeFileSync(settingsPath, JSON.stringify(updatedSettings, null, 2));
-                return { success: true };
-            }
-            return { success: false, error: '不明なメソッド' };
-        }
-        catch (error) {
-            console.error('設定処理エラー:', error);
-            return {
-                success: false,
-                error: error instanceof Error ? error.message : '不明なエラー'
-            };
-        }
-    }
-    // その他のAPI呼び出しはhandleApiCallに委譲
-    return handleApiCall(request);
-});
-// フォルダ選択ダイアログハンドラー
-electron_1.ipcMain.handle('browseFolder', showFolderDialog);
-// テーマ設定を取得するハンドラー
-electron_1.ipcMain.handle('get-theme-preference', async () => {
-    try {
-        // ユーザーデータディレクトリからテーマ設定を読み込む
-        const userDataPath = electron_1.app.getPath('userData');
-        const settingsPath = path.join(userDataPath, 'settings.json');
-        // 設定ファイルが存在するか確認
-        if (fs.existsSync(settingsPath)) {
-            const settings = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
-            if (settings.themeMode && (settings.themeMode === 'light' || settings.themeMode === 'dark')) {
-                return settings.themeMode;
-            }
-        }
-        // デフォルト設定（ないか不正な値の場合はダークモード）
-        return 'dark';
-    }
-    catch (error) {
-        console.error('テーマ設定の読み込みエラー:', error);
-        return 'dark'; // エラー時はダークモード
-    }
-});
-// テーマ設定を保存するハンドラー
-electron_1.ipcMain.handle('set-theme-preference', async (_, theme) => {
-    try {
-        // ユーザーデータディレクトリに設定を保存
-        const userDataPath = electron_1.app.getPath('userData');
-        const settingsPath = path.join(userDataPath, 'settings.json');
-        // 既存の設定を読み込むか、新しい設定オブジェクトを作成
-        let settings = {};
-        if (fs.existsSync(settingsPath)) {
-            settings = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
-        }
-        // テーマ設定を更新
-        settings.themeMode = theme;
-        // ファイルに保存
-        fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2));
-        // ウィンドウの背景色を更新
-        if (mainWindow) {
-            mainWindow.setBackgroundColor(theme === 'dark' ? '#121212' : '#f5f5f5');
-        }
-        return { success: true };
-    }
-    catch (error) {
-        console.error('テーマ設定の保存エラー:', error);
-        return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
-    }
-});
-// ウィンドウコントロール用のIPCハンドラーを追加
-electron_1.ipcMain.handle('window-minimize', () => {
-    if (mainWindow)
-        mainWindow.minimize();
-    return { success: true };
-});
-electron_1.ipcMain.handle('window-maximize', () => {
-    if (mainWindow) {
-        if (mainWindow.isMaximized()) {
-            mainWindow.unmaximize();
-        }
-        else {
-            mainWindow.maximize();
-        }
-    }
-    return { success: true };
-});
-electron_1.ipcMain.handle('window-close', () => {
-    if (mainWindow)
-        mainWindow.close();
-    return { success: true };
-});
-electron_1.ipcMain.handle('window-is-maximized', () => {
-    return mainWindow ? mainWindow.isMaximized() : false;
-});
 // アプリケーション起動時の処理
 electron_1.app.on('ready', async () => {
     console.log('===== Electron アプリ起動開始 =====');

@@ -230,7 +230,7 @@ const Settings: React.FC = () => {
           フォルダ設定
         </Typography>
         <Grid container spacing={2}>
-          <Grid item xs={12}>
+          <Grid size={12}>
             <Box sx={{ display: 'flex', alignItems: 'flex-start', mb: 2 }}>
               <TextField
                 fullWidth
@@ -255,7 +255,7 @@ const Settings: React.FC = () => {
             </Box>
           </Grid>
           
-          <Grid item xs={12}>
+          <Grid size={12}>
             <Box sx={{ display: 'flex', alignItems: 'flex-start', mb: 2 }}>
               <TextField
                 fullWidth

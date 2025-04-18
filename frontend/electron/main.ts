@@ -6,7 +6,7 @@ import * as http from 'http';
 import * as net from 'net';
 
 // 開発モードかどうかを判定
-const isDev = process.env.NODE_ENV === 'development' && !app.isPackaged;
+const isDev = process.env.NODE_ENV !== 'production' || !app.isPackaged;
 
 // Python APIサーバープロセス
 let pythonProcess: childProcess.ChildProcess | null = null;
@@ -68,9 +68,10 @@ const startPythonApiServer = async (): Promise<boolean> => {
     let pythonExePath: string;
     
     if (isDev) {
-      // 開発環境ではプロジェクトフォルダ内のPythonスクリプトを使用
+      // 開発環境ではプロジェクトフォルダ内のPythonスクリプトを使用し、システムのPythonを呼び出す
       pythonScriptPath = path.join(__dirname, '..', '..', 'backend', 'main.py');
-      pythonExePath = 'python'; // システムのPythonを使用
+      // 環境変数のPATHに登録されているpythonを使用
+      pythonExePath = 'python'; 
     } else {
       // 本番環境では同梱されたPythonとスクリプトを使用
       pythonScriptPath = path.join(process.resourcesPath, 'backend', 'main.py');
@@ -520,7 +521,7 @@ function loadProductionBuild() {
     });
     
     // クラッシュやハングを検出
-    mainWindow.webContents.on('crashed', () => {
+    (    mainWindow.webContents as any).on('crashed', () => {
       console.error('レンダラープロセスがクラッシュしました');
     });
     

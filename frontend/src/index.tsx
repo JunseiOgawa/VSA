@@ -5,7 +5,7 @@ import App from './App';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { TemplateProvider } from './contexts/TemplateContext';
 import { GameConfigProvider } from './contexts/GameConfigContext';
-import { BrowserRouter } from 'react-router-dom';
+import { HashRouter } from 'react-router-dom';
 
 // Electron APIの型拡張
 declare global {

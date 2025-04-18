@@ -257,7 +257,7 @@ const AlbumsView: React.FC<AlbumsViewProps> = ({ mode }) => {
         
         <Grid container spacing={2}>
           {/* アルバム/コンポジット名入力 */}
-          <Grid item xs={12} sm={mode === 'composite' ? 6 : 12}>
+          <Grid size={{ xs: 12, sm: mode === 'composite' ? 6 : 12 }}>
             <TextField
               fullWidth
               label={mode === 'albums' ? "アルバム名" : "コンポジット名 (任意)"}
@@ -270,7 +270,7 @@ const AlbumsView: React.FC<AlbumsViewProps> = ({ mode }) => {
           
           {/* コンポジットモードの場合のレイアウト選択 */}
           {mode === 'composite' && (
-            <Grid item xs={12} sm={6}>
+            <Grid size={{ xs: 12, sm: 6 }}>
               <FormControl fullWidth size="small">
                 <InputLabel>レイアウト</InputLabel>
                 <Select
@@ -289,7 +289,7 @@ const AlbumsView: React.FC<AlbumsViewProps> = ({ mode }) => {
           
           {/* アルバムの場合の説明入力 */}
           {mode === 'albums' && (
-            <Grid item xs={12}>
+            <Grid size={{ xs: 12 }}>
               <TextField
                 fullWidth
                 label="アルバムの説明 (任意)"
@@ -303,7 +303,7 @@ const AlbumsView: React.FC<AlbumsViewProps> = ({ mode }) => {
           )}
           
           {/* 保存/作成ボタン */}
-          <Grid item xs={12}>
+          <Grid size={{ xs: 12 }}>
             <Button
               variant="contained"
               color="primary"
@@ -343,7 +343,7 @@ const AlbumsView: React.FC<AlbumsViewProps> = ({ mode }) => {
           
           <Grid container spacing={1}>
             {selectedPhotos.map(photo => (
-              <Grid item key={photo.id} xs={6} sm={4} md={3} lg={2}>
+              <Grid size={{ xs: 6, sm: 4, md: 3, lg: 2 }} key={photo.id}>
                 <Card 
                   variant="outlined" 
                   sx={{ 
@@ -393,7 +393,7 @@ const AlbumsView: React.FC<AlbumsViewProps> = ({ mode }) => {
         {/* 写真一覧 */}
         <Grid container spacing={2}>
           {availablePhotos.map(photo => (
-            <Grid item key={photo.id} xs={6} sm={4} md={3} lg={2}>
+            <Grid size={{ xs: 6, sm: 4, md: 3, lg: 2 }} key={photo.id}>
               <Card 
                 variant={selectedPhotos.some(p => p.id === photo.id) ? 'elevation' : 'outlined'}
                 elevation={selectedPhotos.some(p => p.id === photo.id) ? 3 : 0}
@@ -445,7 +445,7 @@ const AlbumsView: React.FC<AlbumsViewProps> = ({ mode }) => {
           
           {/* 写真が見つからない場合 */}
           {availablePhotos.length === 0 && (
-            <Grid item xs={12}>
+            <Grid size={{ xs: 12 }}>
               <Box 
                 sx={{ 
                   p: 3, 

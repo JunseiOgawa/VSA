@@ -15,7 +15,8 @@
     "isolatedModules": true,                            /* ファイルを個別にコンパイル可能に */
     "noEmit": true,                                     /* JSファイルの出力を無効化 */
     "jsx": "react-jsx",                                 /* React JSXのサポートを有効化 */
-    "types": ["node"]                                   /* 型定義ファイルの指定 */
+    "types": ["node"],                                  /* 型定義ファイルの指定 */
+    "typeRoots": ["./typings", "./node_modules/@types"]
   },
   "include": ["src", "electron"]                                    /* コンパイル対象のディレクトリ */
 }
