@@ -160,7 +160,7 @@ function App() {
         }}
       >
         {/* カスタムタイトルバー */}
-        <CustomTitleBar title="エーテル製 VRC Snap Archive" />
+        <CustomTitleBar title="VRC Snap Archive" />
         
         <Box sx={{ display: 'flex', flexGrow: 1, overflow: 'hidden' }}>
           {/* 左側メニュー */}

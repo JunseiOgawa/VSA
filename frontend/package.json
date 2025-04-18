@@ -1,44 +1,41 @@
 {
-  "name": "vrc-snap-archive",
+  "name": "frontend",
   "version": "1.0.0",
-  "description": "VRChat Screenshot Archive Manager",
-  "main": "dist/electron/main.js",
-  "private": true,
+  "description": "This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).",
+  "main": "test-electron.js",
+  "scripts": {
+    "dev": "react-scripts start",
+    "build": "react-scripts build",
+    "start": "npm run build && npm run build-electron && electron ./dist/electron/main.js",
+    "build-electron": "tsc -p electron/tsconfig.json",
+    "watch-electron": "tsc -p electron/tsconfig.json -w",
+    "dev-electron": "concurrently \"npm run dev\" \"npm run watch-electron\" \"wait-on http://localhost:3000 && electron ./dist/electron/main.js\""
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
   "dependencies": {
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.0",
-    "@mui/icons-material": "^6.4.6",
-    "@mui/material": "^6.4.6",
+    "@mui/icons-material": "^7.0.2",
+    "@mui/material": "^7.0.2",
     "@testing-library/dom": "^10.4.0",
     "@testing-library/jest-dom": "^6.6.3",
-    "@testing-library/react": "^16.2.0",
-    "@testing-library/user-event": "^13.5.0",
-    "axios": "^1.8.1",
+    "@testing-library/react": "^16.3.0",
+    "@testing-library/user-event": "^14.6.1",
+    "axios": "^1.8.4",
     "electron-is-dev": "^3.0.1",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0",
-    "react-router-dom": "^7.2.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "react-router-dom": "^7.5.1",
     "react-scripts": "^5.0.1",
-    "web-vitals": "^2.1.4"
+    "web-vitals": "^4.2.4"
   },
-  "scripts": {
-    "start": "npm run build-electron && electron ./dist/electron/main.js",
-    "start-test": "npm run build-electron && electron ./test-electron.js",
-    "start-silent": "npm run build-electron && electron ./test-electron.js --no-window",
-    "build-electron": "tsc -p electron/tsconfig.json",
-    "watch-electron": "tsc -p electron/tsconfig.json -w",
-    "dev": "react-scripts start",
-    "dev-electron": "concurrently \"npm run dev\" \"npm run watch-electron\" \"wait-on http://localhost:3000 && electron ./dist/electron/main.js\"",
-    "electron-dev": "concurrently \"npm run dev\" \"npm run watch-electron\" \"wait-on http://localhost:3000 && electron ./dist/electron/main.js\"",
-    "build": "react-scripts build && npm run build-electron",
-    "test": "react-scripts test",
-    "eject": "react-scripts eject"
-  },
-  "eslintConfig": {
-    "extends": [
-      "react-app",
-      "react-app/jest"
-    ]
+  "devDependencies": {
+    "@types/react": "^19.1.2",
+    "@types/react-dom": "^19.1.2",
+    "concurrently": "^9.1.2",
+    "electron": "^35.1.5"
   },
   "browserslist": {
     "production": [
@@ -51,13 +48,5 @@
       "last 1 firefox version",
       "last 1 safari version"
     ]
-  },
-  "devDependencies": {
-    "@types/react": "^19.0.12",
-    "@types/react-dom": "^19.0.4",
-    "concurrently": "^9.1.2",
-    "electron": "^34.3.0",
-    "typescript": "^4.9.5",
-    "wait-on": "^8.0.2"
   }
 }

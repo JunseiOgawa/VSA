@@ -7,7 +7,6 @@ import {
   TextField,
   FormControlLabel,
   Switch,
-  Grid,
   Tooltip,
   IconButton,
   Divider,
@@ -23,11 +22,13 @@ import {
   CardContent,
   LinearProgress
 } from '@mui/material';
+import Grid from '@mui/material/Grid';
 import InfoIcon from '@mui/icons-material/Info';
 import FolderIcon from '@mui/icons-material/Folder';
 import CompressIcon from '@mui/icons-material/Compress';
 import FolderOpenIcon from '@mui/icons-material/FolderOpen';
 import SettingsIcon from '@mui/icons-material/Settings';
+import { useGameConfig } from '../contexts/GameConfigContext';
 
 // フォルダ情報の型定義
 interface FolderInfo {
@@ -53,6 +54,7 @@ const Compress: React.FC = () => {
   const [outputFolder, setOutputFolder] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const { gameName } = useGameConfig();
   
   // フォルダ関連の状態
   const [folders, setFolders] = useState<FolderInfo[]>([]);
@@ -389,7 +391,7 @@ const Compress: React.FC = () => {
       </Typography>
       
       <Typography paragraph>
-        VRChatのスクリーンショットを圧縮して容量を削減します。
+        {gameName}のスクリーンショットを圧縮して容量を削減します。
         月別に圧縮することで管理が容易になります。
       </Typography>
 
@@ -429,9 +431,9 @@ const Compress: React.FC = () => {
           {/* VRChatフォルダ選択 */}
           <Grid item xs={12}>
             <Typography variant="subtitle2" gutterBottom>
-              VRChatスクリーンショットフォルダ
+              {gameName}スクリーンショットフォルダ
               <Tooltip 
-                title="VRChatのスクリーンショットが保存されているフォルダを選択してください。通常はPicturesフォルダ内のVRChatフォルダです。" 
+                title={`${gameName}のスクリーンショットが保存されているフォルダを選択してください。通常はPicturesフォルダ内の${gameName}フォルダです。`} 
                 arrow
               >
                 <IconButton size="small" color="primary">
@@ -444,7 +446,7 @@ const Compress: React.FC = () => {
                 fullWidth
                 variant="outlined"
                 size="small"
-                placeholder="VRChatスクリーンショットのフォルダを選択"
+                placeholder={`${gameName}スクリーンショットのフォルダを選択`}
                 value={vrcFolder}
                 InputProps={{
                   readOnly: true,

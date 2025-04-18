@@ -23,6 +23,7 @@ import InfoIcon from '@mui/icons-material/Info';
 import DownloadIcon from '@mui/icons-material/Download';
 import FileOpenIcon from '@mui/icons-material/FileOpen';
 import CompressIcon from '@mui/icons-material/Compress';
+import { useGameConfig } from '../../contexts/GameConfigContext';
 
 // 圧縮アーカイブ情報の型定義
 interface ArchiveInfo {
@@ -43,6 +44,7 @@ const CompressView: React.FC = () => {
   const [archives, setArchives] = useState<ArchiveInfo[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const { gameName } = useGameConfig();
   
   // 圧縮アーカイブ一覧を読み込む
   useEffect(() => {
@@ -107,7 +109,7 @@ const CompressView: React.FC = () => {
       const compressionRatio = Math.floor(Math.random() * 40 + 50); // 50%-90%
       
       dummyArchives.push({
-        path: `C:\\Users\\Example\\Documents\\VRChatArchive\\${folderName}.7z`,
+        path: `C:\\Users\\Example\\Documents\\${gameName}Archive\\${folderName}.7z`,
         name: `${folderName}.7z`,
         size: size,
         sizeFormatted: formatFileSize(size),
@@ -301,7 +303,7 @@ const CompressView: React.FC = () => {
           </Typography>
         </Box>
         <Typography paragraph>
-          圧縮アーカイブは、VRChatのスクリーンショットを月別に圧縮して保存したものです。
+          圧縮アーカイブは、{gameName}のスクリーンショットを月別に圧縮して保存したものです。
           圧縮によって容量を削減しながら、必要なときにいつでも元の画像を取り出すことができます。
         </Typography>
         <Typography paragraph>

@@ -14,7 +14,8 @@
     "resolveJsonModule": true,                          /* JSONファイルのインポートを有効化 */
     "isolatedModules": true,                            /* ファイルを個別にコンパイル可能に */
     "noEmit": true,                                     /* JSファイルの出力を無効化 */
-    "jsx": "react-jsx"                                  /* React JSXのサポートを有効化 */
+    "jsx": "react-jsx",                                 /* React JSXのサポートを有効化 */
+    "types": ["node"]                                   /* 型定義ファイルの指定 */
   },
   "include": ["src", "electron"]                                    /* コンパイル対象のディレクトリ */
 }

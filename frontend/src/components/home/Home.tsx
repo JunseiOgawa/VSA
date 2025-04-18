@@ -17,6 +17,7 @@ import CompressIcon from '@mui/icons-material/Compress';
 import SearchIcon from '@mui/icons-material/Search';
 import SettingsIcon from '@mui/icons-material/Settings';
 import TwitterIcon from '@mui/icons-material/Twitter'; // ツイートアイコンを追加
+import { useGameConfig } from '../../contexts/GameConfigContext';
 
 // 機能カードのプロパティ型定義
 interface FeatureCardProps {
@@ -56,6 +57,7 @@ const FeatureCard: React.FC<FeatureCardProps> = ({ title, description, icon, onC
 const Home: React.FC = () => {
   // MUIテーマを取得
   const theme = useTheme();
+  const { gameName } = useGameConfig();
   
   // 機能カードがクリックされたときの処理
   const handleFeatureClick = (feature: string) => {
@@ -82,7 +84,7 @@ const Home: React.FC = () => {
           VRC Snap Archive へようこそ
         </Typography>
         <Typography variant="subtitle1" paragraph>
-          VRChatスクリーンショットを簡単に管理・整理・検索できるツールです。
+          {gameName}スクリーンショットを簡単に管理・整理・検索できるツールです。
         </Typography>
         <Box sx={{ mt: 2 }}>
           <Button 

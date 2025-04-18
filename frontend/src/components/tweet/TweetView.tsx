@@ -32,18 +32,9 @@ import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
 import PhotoLibraryIcon from '@mui/icons-material/PhotoLibrary';
 import { TemplateProvider, useTemplates, Template } from '../../contexts/TemplateContext';
+import { useGameConfig } from '../../contexts/GameConfigContext';
 import TweetTemplateModal from './TweetTemplateModal';
 import { SelectChangeEvent } from '@mui/material/Select';
-
-// ダミー写真データ（開発用）
-const DUMMY_PHOTOS = [
-  { id: 'photo1', path: 'https://via.placeholder.com/300x200?text=VRChat+Photo+1', thumbnailPath: 'https://via.placeholder.com/150x100?text=Thumbnail+1' },
-  { id: 'photo2', path: 'https://via.placeholder.com/300x200?text=VRChat+Photo+2', thumbnailPath: 'https://via.placeholder.com/150x100?text=Thumbnail+2' },
-  { id: 'photo3', path: 'https://via.placeholder.com/300x200?text=VRChat+Photo+3', thumbnailPath: 'https://via.placeholder.com/150x100?text=Thumbnail+3' },
-  { id: 'photo4', path: 'https://via.placeholder.com/300x200?text=VRChat+Photo+4', thumbnailPath: 'https://via.placeholder.com/150x100?text=Thumbnail+4' },
-  { id: 'photo5', path: 'https://via.placeholder.com/300x200?text=VRChat+Photo+5', thumbnailPath: 'https://via.placeholder.com/150x100?text=Thumbnail+5' },
-  { id: 'photo6', path: 'https://via.placeholder.com/300x200?text=VRChat+Photo+6', thumbnailPath: 'https://via.placeholder.com/150x100?text=Thumbnail+6' },
-];
 
 // 写真データの型定義
 interface PhotoData {
@@ -68,9 +59,20 @@ const TweetView: React.FC = () => {
     loadTemplates, 
     isLoading 
   } = useTemplates();
+  const { gameName } = useGameConfig();
+  
+  // ダミー写真データ（開発用）
+  const DUMMY_PHOTOS = [
+    { id: 'photo1', path: `https://via.placeholder.com/300x200?text=${gameName}+Photo+1`, thumbnailPath: `https://via.placeholder.com/150x100?text=Thumbnail+1` },
+    { id: 'photo2', path: `https://via.placeholder.com/300x200?text=${gameName}+Photo+2`, thumbnailPath: `https://via.placeholder.com/150x100?text=Thumbnail+2` },
+    { id: 'photo3', path: `https://via.placeholder.com/300x200?text=${gameName}+Photo+3`, thumbnailPath: `https://via.placeholder.com/150x100?text=Thumbnail+3` },
+    { id: 'photo4', path: `https://via.placeholder.com/300x200?text=${gameName}+Photo+4`, thumbnailPath: `https://via.placeholder.com/150x100?text=Thumbnail+4` },
+    { id: 'photo5', path: `https://via.placeholder.com/300x200?text=${gameName}+Photo+5`, thumbnailPath: `https://via.placeholder.com/150x100?text=Thumbnail+5` },
+    { id: 'photo6', path: `https://via.placeholder.com/300x200?text=${gameName}+Photo+6`, thumbnailPath: `https://via.placeholder.com/150x100?text=Thumbnail+6` },
+  ];
   
   // 状態管理
-  const [photos, setPhotos] = useState<PhotoData[]>(DUMMY_PHOTOS);
+  const [photos, setPhotos] = useState<PhotoData[]>([]);
   const [selectedPhotos, setSelectedPhotos] = useState<PhotoData[]>([]);
   const [templateModalOpen, setTemplateModalOpen] = useState<boolean>(false);
   const [currentEditTemplate, setCurrentEditTemplate] = useState<Template | null>(null);
@@ -83,6 +85,11 @@ const TweetView: React.FC = () => {
     severity: 'success' as 'success' | 'error' | 'info'
   });
   const [photoBrowserOpen, setPhotoBrowserOpen] = useState<boolean>(false);
+  
+  // コンポーネントの初期化時にダミー写真を設定
+  useEffect(() => {
+    setPhotos(DUMMY_PHOTOS);
+  }, [gameName]);
   
   // 文字数制限（Twitter標準の140文字）
   const CHARACTER_LIMIT = 140;
@@ -266,7 +273,7 @@ const TweetView: React.FC = () => {
           SNS投稿文生成
         </Typography>
         <Typography variant="body1" paragraph>
-          VRChatのスクリーンショットからSNS投稿用のテキストを自動生成します。
+          {gameName}のスクリーンショットからSNS投稿用のテキストを自動生成します。
           テンプレートを選び、写真を選択してテキストを生成しましょう。
         </Typography>
         

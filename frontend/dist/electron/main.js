@@ -476,86 +476,11 @@ function createWindow() {
         mainWindow.webContents.openDevTools(); // 開発者ツールを自動的に開く
     }
     else {
-        try {
-            // デバッグ情報を表示
-            const appPath = electron_1.app.getAppPath();
-            console.log('アプリケーションパス:', appPath);
-            // ビルド済みHTMLファイルのパスを計算（複数の可能性を考慮）
-            let indexPath = path.join(__dirname, '../../build/index.html');
-            console.log('試行するindexパス1:', indexPath);
-            // パス1が見つからない場合は別の可能性を試す
-            if (!fs.existsSync(indexPath)) {
-                indexPath = path.join(appPath, 'build/index.html');
-                console.log('試行するindexパス2:', indexPath);
-            }
-            // パス2も見つからない場合は別の可能性を試す
-            if (!fs.existsSync(indexPath)) {
-                indexPath = path.join(appPath, '../build/index.html');
-                console.log('試行するindexパス3:', indexPath);
-            }
-            // 最終チェック
-            if (!fs.existsSync(indexPath)) {
-                // HTMLが見つからない場合はエラーページを表示
-                console.error('HTMLファイルが見つかりません。Reactアプリがビルドされていない可能性があります。');
-                mainWindow.loadURL(`data:text/html,
-          <html>
-            <head>
-              <title>Error</title>
-              <meta charset="utf-8">
-              <style>
-                body { font-family: Arial, sans-serif; background: #f0f0f0; color: #333; padding: 20px; text-align: center; }
-                h1 { color: #e74c3c; }
-                pre { background: #fff; padding: 15px; border-radius: 5px; text-align: left; overflow: auto; }
-                button { padding: 8px 16px; background: #3498db; color: white; border: none; border-radius: 4px; cursor: pointer; }
-              </style>
-            </head>
-            <body>
-              <h1>アプリケーション起動エラー</h1>
-              <p>アプリケーションの起動中にエラーが発生しました。</p>
-              <p>HTMLファイルが見つかりません。Reactアプリがビルドされていない可能性があります。</p>
-              <h3>パス情報:</h3>
-              <pre>
-アプリパス: ${appPath}
-試行したパス1: ${path.join(__dirname, '../../build/index.html')}
-試行したパス2: ${path.join(appPath, 'build/index.html')}
-試行したパス3: ${path.join(appPath, '../build/index.html')}
-              </pre>
-              <p>このエラーを解決するには、フロントエンドディレクトリで「npm run build」を実行してください。</p>
-              <button onclick="window.close()">アプリを閉じる</button>
-            </body>
-          </html>
-        `);
-                // 開発者ツールを開いて問題を確認しやすくする
-                mainWindow.webContents.openDevTools();
-                return;
-            }
-            // 正常にHTMLファイルが見つかった場合はロード
-            mainWindow.loadFile(indexPath);
-            console.log(`本番モード: ${indexPath} を読み込みました`);
-        }
-        catch (error) {
-            console.error('ファイル読み込みエラー:', error);
-            // エラーが発生した場合はエラーメッセージを表示
-            mainWindow.loadURL(`data:text/html,
-        <html>
-          <head>
-            <title>Error</title>
-            <meta charset="utf-8">
-            <style>
-              body { font-family: Arial, sans-serif; background: #f0f0f0; color: #333; padding: 20px; text-align: center; }
-              h1 { color: #e74c3c; }
-              pre { background: #fff; padding: 15px; border-radius: 5px; text-align: left; overflow: auto; }
-            </style>
-          </head>
-          <body>
-            <h1>エラーが発生しました</h1>
-            <p>${error instanceof Error ? error.message : '不明なエラー'}</p>
-            <pre>${error instanceof Error ? error.stack : 'スタックトレースなし'}</pre>
-          </body>
-        </html>
-      `);
-            mainWindow.webContents.openDevTools();
-        }
+        // ビルド済みのindex.htmlを読み込む
+        // パスの計算を修正：__dirnameは dist/electron になるので、正しく遡る
+        const indexPath = path.join(__dirname, '../../build/index.html');
+        mainWindow.loadFile(indexPath);
+        console.log(`本番モード: ${indexPath} を読み込みました`);
     }
     // ウィンドウのリサイズイベント
     mainWindow.on('resize', () => {

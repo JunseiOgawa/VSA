@@ -4,6 +4,7 @@ import './index.css';
 import App from './App';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { TemplateProvider } from './contexts/TemplateContext';
+import { GameConfigProvider } from './contexts/GameConfigContext';
 import { BrowserRouter } from 'react-router-dom';
 
 // Electron APIの型拡張
@@ -38,9 +39,11 @@ root.render(
   <React.StrictMode>
     <BrowserRouter>
       <ThemeProvider>
-        <TemplateProvider>
-          <App />
-        </TemplateProvider>
+        <GameConfigProvider>
+          <TemplateProvider>
+            <App />
+          </TemplateProvider>
+        </GameConfigProvider>
       </ThemeProvider>
     </BrowserRouter>
   </React.StrictMode>

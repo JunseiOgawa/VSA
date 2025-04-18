@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Typography, Paper, Box, Button, Divider, Grid } from '@mui/material';
 import TweetIcon from '@mui/icons-material/Twitter';
 import Tweet from './Tweet';
+import { useGameConfig } from '../contexts/GameConfigContext';
 
 // 仮の写真データ型
 interface PhotoData {
@@ -16,6 +17,7 @@ const Photos: React.FC = () => {
   
   // ツイート生成表示状態
   const [showTweetGenerator, setShowTweetGenerator] = useState<boolean>(false);
+  const { gameName } = useGameConfig();
   
   // 写真選択ハンドラ（実際の実装では写真一覧から選択）
   const handleSelectPhoto = (photo: PhotoData) => {
@@ -40,7 +42,7 @@ const Photos: React.FC = () => {
           写真
         </Typography>
         <Typography paragraph>
-          VRChatで撮影したスクリーンショットを閲覧・管理します。
+          {gameName}で撮影したスクリーンショットを閲覧・管理します。
         </Typography>
         
         {/* 操作ボタン */}
