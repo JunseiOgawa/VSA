@@ -1,22 +1,12 @@
-from sqlalchemy import Column, Integer, String, JSON, UniqueConstraint
-from ..database import Base
+import datetime
+from sqlalchemy import Column, Integer, String, DateTime, JSON
+from database import Base
 
 class Settings(Base):
     __tablename__ = "settings"
-    
-    id = Column(Integer, primary_key=True)
-    key = Column(String, unique=True, index=True)
-    value = Column(JSON)  # 設定値をJSON形式で保存
-    
-    def __repr__(self):
-        return f"<Settings(key='{self.key}')>"
-    
-    def to_dict(self):
-        """
-        モデルを辞書形式に変換するユーティリティメソッド
-        """
-        return {
-            "id": self.id,
-            "key": self.key,
-            "value": self.value
-        }
+
+    id = Column(Integer, primary_key=True, index=True)
+    key = Column(String, unique=True, nullable=False, index=True)
+    value = Column(JSON, nullable=True)
+    created_date = Column(DateTime, default=datetime.datetime.utcnow)
+    modified_date = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)

@@ -1,11 +1,13 @@
 import json
-import sys
+import os
+from fastapi import FastAPI, Depends, HTTPException, status
+from fastapi.middleware.cors import CORSMiddleware
+import uvicorn
 from sqlalchemy.orm import Session
-import traceback
-from contextlib import contextmanager
 
-from database import engine, Base, SessionLocal
+from database import engine, Base, SessionLocal, get_db
 import models
+from routers import albums, composites, images, settings, templates
 
 # データベースの初期化
 def init_db():
@@ -31,91 +33,45 @@ def init_default_settings(db: Session):
         
         db.commit()
 
-# アプリケーション起動時の初期化
-def startup():
+# FastAPIアプリケーションの初期化
+app = FastAPI(
+    title="VSA Backend API",
+    description="VRC Snap Archive Backend API",
+    version="1.0.0"
+)
+
+# CORS設定（開発環境ではすべてのオリジンを許可）
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # 本番環境では適切に制限する
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# 起動時にデータベースを初期化
+@app.on_event("startup")
+async def startup_event():
     init_db()
-    with SessionLocal() as db:
-        init_default_settings(db)
-    print(json.dumps({"status": "initialized"}), flush=True)
-
-# メインアプリ初期化時に設定を初期化
-# アプリケーション起動時に呼び出す
-def initialize_app():
-    return SettingsService.initialize_settings()
-
-# コマンドハンドラーの辞書
-command_handlers = {}
-
-# 標準入力から受け取ったJSONコマンドを処理
-def process_command(command_json):
+    # デフォルト設定の初期化
+    db = SessionLocal()
     try:
-        # JSONデータをパース
-        data = json.loads(command_json)
-        command = data.get("command")
-        params = data.get("params", {})
-        request_id = data.get("id", "unknown")
-        
-        # コマンドハンドラーが存在するか確認
-        if command in command_handlers:
-            result = command_handlers[command](**params)
-            # 結果を返す
-            return json.dumps({
-                "result": result,
-                "error": None,
-                "id": request_id
-            })
-        else:
-            # コマンドが見つからない場合はエラー
-            return json.dumps({
-                "result": None,
-                "error": {
-                    "code": 404,
-                    "message": f"Command not found: {command}"
-                },
-                "id": request_id
-            })
-    except Exception as e:
-        # 例外発生時はエラーメッセージを返す
-        traceback.print_exc()
-        return json.dumps({
-            "result": None,
-            "error": {
-                "code": 500,
-                "message": str(e)
-            },
-            "id": request_id
-        })
+        init_default_settings(db)
+    finally:
+        db.close()
 
-# メインループ
-def main():
-    # 初期化
-    startup()
-    
-    # 標準入力からコマンドを読み取って処理
-    for line in sys.stdin:
-        if not line.strip():
-            continue
-        
-        response = process_command(line)
-        # 標準出力に応答を書き込む
-        print(response, flush=True)
+# ヘルスチェックエンドポイント
+@app.get("/")
+def read_root():
+    return {"status": "ok", "message": "VSA Backend API is running"}
 
-# サービスのインポート
-from services.image_service import ImageService
-from services.settings_service import SettingsService
-from services.template_service import TemplateService
+# 各ルーターの登録
+app.include_router(images.router)
+app.include_router(albums.router)
+app.include_router(composites.router)
+app.include_router(settings.router)
+app.include_router(templates.router)
 
-# コマンドハンドラー　JSONに返す
-command_handlers["initialize_app"] = initialize_app
-command_handlers["get_settings"] = SettingsService.get_settings
-command_handlers["update_settings"] = SettingsService.update_settings
-command_handlers["get_images"] = ImageService.get_images
-command_handlers["get_image_metadata"] = ImageService.get_image_metadata
-command_handlers["get_templates"] = TemplateService.get_templates  # SettingsServiceからTemplateServiceに変更
-command_handlers["create_template"] = TemplateService.create_template  # SettingsServiceからTemplateServiceに変更
-command_handlers["update_template"] = TemplateService.update_template  # SettingsServiceからTemplateServiceに変更
-command_handlers["delete_template"] = TemplateService.delete_template  # SettingsServiceからTemplateServiceに変更
-command_handlers["generate_text"] = TemplateService.generate_text
-
+# アプリケーション実行
 if __name__ == "__main__":
-    main()
+    uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=True)

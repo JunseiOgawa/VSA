@@ -37,7 +37,7 @@ const root = ReactDOM.createRoot(rootElement);
 // アプリケーションのレンダリング
 root.render(
   <React.StrictMode>
-    <BrowserRouter>
+    <HashRouter>
       <ThemeProvider>
         <GameConfigProvider>
           <TemplateProvider>
@@ -45,6 +45,6 @@ root.render(
           </TemplateProvider>
         </GameConfigProvider>
       </ThemeProvider>
-    </BrowserRouter>
+    </HashRouter>
   </React.StrictMode>
 );

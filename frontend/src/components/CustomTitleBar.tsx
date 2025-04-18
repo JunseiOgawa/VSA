@@ -5,39 +5,69 @@ interface CustomTitleBarProps {
   title: string;
 }
 
+// エラー回避のための型定義
+interface IElectronAPI {
+  minimizeWindow: () => Promise<any>;
+  maximizeWindow: () => Promise<any>;
+  closeWindow: () => Promise<any>;
+  isWindowMaximized: () => Promise<boolean>;
+}
+
 const CustomTitleBar: React.FC<CustomTitleBarProps> = ({ title }) => {
   const theme = useTheme();
   const [isMaximized, setIsMaximized] = useState(false);
+  // windowオブジェクトからelectronAPIを安全に取得
+  const electronAPI = (window as any).electronAPI as IElectronAPI | undefined;
 
   useEffect(() => {
     const checkMaximized = async () => {
-      if (window.electronAPI) {
-        const maximized = await window.electronAPI.isWindowMaximized();
-        setIsMaximized(maximized);
+      try {
+        if (electronAPI && typeof electronAPI.isWindowMaximized === 'function') {
+          const maximized = await electronAPI.isWindowMaximized();
+          setIsMaximized(maximized);
+        }
+      } catch (error) {
+        console.error('ウィンドウ状態の取得エラー:', error);
       }
     };
 
     checkMaximized();
     const interval = setInterval(checkMaximized, 1000);
     return () => clearInterval(interval);
-  }, []);
+  }, [electronAPI]);
 
-  const handleMinimize = () => {
-    if (window.electronAPI) {
-      window.electronAPI.minimizeWindow();
+  const handleMinimize = async () => {
+    try {
+      if (electronAPI && typeof electronAPI.minimizeWindow === 'function') {
+        await electronAPI.minimizeWindow();
+      }
+    } catch (error) {
+      console.error('ウィンドウ最小化エラー:', error);
     }
   };
 
-  const handleMaximize = () => {
-    if (window.electronAPI) {
-      window.electronAPI.maximizeWindow();
-      setIsMaximized(!isMaximized);
+  const handleMaximize = async () => {
+    try {
+      if (electronAPI && typeof electronAPI.maximizeWindow === 'function') {
+        await electronAPI.maximizeWindow();
+        // 変更後の状態を取得
+        if (typeof electronAPI.isWindowMaximized === 'function') {
+          const newState = await electronAPI.isWindowMaximized();
+          setIsMaximized(newState);
+        }
+      }
+    } catch (error) {
+      console.error('ウィンドウ最大化エラー:', error);
     }
   };
 
-  const handleClose = () => {
-    if (window.electronAPI) {
-      window.electronAPI.closeWindow();
+  const handleClose = async () => {
+    try {
+      if (electronAPI && typeof electronAPI.closeWindow === 'function') {
+        await electronAPI.closeWindow();
+      }
+    } catch (error) {
+      console.error('ウィンドウ終了エラー:', error);
     }
   };
 

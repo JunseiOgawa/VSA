@@ -1,144 +1,149 @@
-from typing import Dict, Any, List, Optional
-from ..models.settings import Settings
-from ..database import SessionLocal
+from typing import List, Dict, Any, Optional
+import json
+from database import SessionLocal
+from models.settings import Settings
+from services.settings_service import SettingsService
+from services.image_service import ImageService
 
 class TemplateService:
     @staticmethod
     def get_templates() -> List[Dict[str, Any]]:
         """
-        テンプレート一覧を取得する
-        
-        :return: テンプレートのリスト
+        ツイートテンプレート一覧を取得
         """
-        with SessionLocal() as db:
-            settings = db.query(Settings).filter(Settings.key == "tweet_templates").first()
-            if not settings or not settings.value:
-                return []
+        templates = SettingsService.get_setting("tweet_templates")
+        
+        if not templates:
+            # デフォルトのテンプレートを返す
+            default_templates = [
+                {"id": 1, "name": "シンプル", "template": "「$world_name$」で撮影した写真です！ #VRChat #VRC写真"},
+                {"id": 2, "name": "フレンド", "template": "$world_name$にて。$friends$と一緒に！ #VRChat"},
+                {"id": 3, "name": "枚数", "template": "今日は$count$枚の写真を撮りました！$world_name$にて。 #VRChat"}
+            ]
             
-            return settings.value
+            # データベースに保存
+            SettingsService.update_settings({"tweet_templates": default_templates})
+            
+            return default_templates
+        
+        return templates
     
     @staticmethod
     def create_template(name: str, template: str) -> Dict[str, Any]:
         """
-        新しいテンプレートを作成する
-        
-        :param name: テンプレート名
-        :param template: テンプレート内容
-        :return: 作成されたテンプレート
+        新しいテンプレートを作成
         """
-        with SessionLocal() as db:
-            settings = db.query(Settings).filter(Settings.key == "tweet_templates").first()
-            
-            if not settings:
-                templates = []
-                settings = Settings(key="tweet_templates", value=templates)
-                db.add(settings)
-            else:
-                templates = settings.value or []
-            
-            # 新しいIDを生成
-            new_id = 1
-            if templates:
-                existing_ids = [t.get("id", 0) for t in templates]
-                new_id = max(existing_ids) + 1
-            
-            # 新しいテンプレートを追加
-            new_template = {
-                "id": new_id,
-                "name": name,
-                "template": template
-            }
-            
-            templates.append(new_template)
-            settings.value = templates
-            db.commit()
-            
-            return new_template
+        templates = TemplateService.get_templates()
+        
+        # 新しいIDを生成
+        max_id = 0
+        if templates:
+            max_id = max(template["id"] for template in templates)
+        
+        new_template = {
+            "id": max_id + 1,
+            "name": name,
+            "template": template
+        }
+        
+        templates.append(new_template)
+        
+        # データベースに保存
+        SettingsService.update_settings({"tweet_templates": templates})
+        
+        return new_template
     
     @staticmethod
     def update_template(template_id: int, name: str, template: str) -> bool:
         """
-        既存のテンプレートを更新する
-        
-        :param template_id: テンプレートID
-        :param name: 新しいテンプレート名
-        :param template: 新しいテンプレート内容
-        :return: 更新成功フラグ
+        テンプレートを更新
         """
-        with SessionLocal() as db:
-            settings = db.query(Settings).filter(Settings.key == "tweet_templates").first()
-            
-            if not settings or not settings.value:
-                return False
-            
-            templates = settings.value
-            updated = False
-            
-            for i, tmpl in enumerate(templates):
-                if tmpl.get("id") == template_id:
-                    templates[i] = {
-                        "id": template_id,
-                        "name": name,
-                        "template": template
-                    }
-                    updated = True
-                    break
-            
-            if updated:
-                settings.value = templates
-                db.commit()
+        templates = TemplateService.get_templates()
+        
+        for i, t in enumerate(templates):
+            if t["id"] == template_id:
+                templates[i]["name"] = name
+                templates[i]["template"] = template
                 
-            return updated
+                # データベースに保存
+                SettingsService.update_settings({"tweet_templates": templates})
+                
+                return True
+        
+        return False
     
     @staticmethod
     def delete_template(template_id: int) -> bool:
         """
-        テンプレートを削除する
-        
-        :param template_id: テンプレートID
-        :return: 削除成功フラグ
+        テンプレートを削除
         """
-        with SessionLocal() as db:
-            settings = db.query(Settings).filter(Settings.key == "tweet_templates").first()
-            
-            if not settings or not settings.value:
-                return False
-            
-            templates = settings.value
-            original_length = len(templates)
-            
-            # IDに一致するテンプレートを除外
-            templates = [t for t in templates if t.get("id") != template_id]
-            
-            if len(templates) < original_length:
-                settings.value = templates
-                db.commit()
+        templates = TemplateService.get_templates()
+        
+        for i, t in enumerate(templates):
+            if t["id"] == template_id:
+                templates.pop(i)
                 
-                # デフォルトテンプレートが削除されたテンプレートだった場合、デフォルトを更新
-                default_setting = db.query(Settings).filter(Settings.key == "default_tweet_template").first()
-                if default_setting and default_setting.value == template_id:
-                    if templates:
-                        default_setting.value = templates[0]["id"]
-                    else:
-                        default_setting.value = None
-                    db.commit()
+                # データベースに保存
+                SettingsService.update_settings({"tweet_templates": templates})
                 
                 return True
-            
-            return False
-            
+        
+        return False
+    
     @staticmethod
     def generate_text(image_ids: List[int], template_id: int) -> Dict[str, Any]:
         """
-        選択した画像IDとテンプレートIDから定型文を生成
-        
-        :param image_ids: 画像ID配列
-        :param template_id: テンプレートID
-        :return: 生成された定型文と置換された変数情報
+        テンプレートと画像IDを元に定型文を生成
         """
-        # 既存のgenerate_text実装をここに移植
-        # 実装が提供されていないため仮の実装
+        # テンプレートを取得
+        templates = TemplateService.get_templates()
+        template = None
+        
+        for t in templates:
+            if t["id"] == template_id:
+                template = t
+                break
+        
+        if not template:
+            return {"text": "", "replacements": {}, "error": "Template not found"}
+        
+        # 画像メタデータを取得
+        images = []
+        world_names = set()
+        friends = set()
+        
+        for image_id in image_ids:
+            try:
+                image = ImageService.get_image_metadata(image_id)
+                images.append(image)
+                
+                if image["world_name"]:
+                    world_names.add(image["world_name"])
+                
+                if image["metadata"] and "friends" in image["metadata"]:
+                    for friend in image["metadata"]["friends"]:
+                        friends.add(friend)
+            except ValueError:
+                pass
+        
+        if not images:
+            return {"text": "", "replacements": {}, "error": "No valid images found"}
+        
+        # 置換用変数の作成
+        replacements = {
+            "count": len(images),
+            "world_name": ", ".join(world_names) if world_names else "不明なワールド",
+            "friends": ", ".join(friends) if friends else "フレンド情報なし"
+        }
+        
+        # テキスト生成
+        text = template["template"]
+        
+        for key, value in replacements.items():
+            placeholder = f"${key}$"
+            text = text.replace(placeholder, str(value))
+        
         return {
-            "text": "Generated text would appear here",
-            "variables": {}
+            "text": text,
+            "replacements": replacements
         }

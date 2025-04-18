@@ -1,32 +1,24 @@
+import os
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
-import os
-import pathlib
 
-# アプリケーションデータディレクトリの取得
-# WindowsのC:\Users\<ユーザー名>\AppData\Local\VRC-SnapArchive
-app_data_dir = os.path.join(os.environ.get('LOCALAPPDATA', ''), 'VRC-SnapArchive')
-# ディレクトリが存在しない場合は作成
-os.makedirs(app_data_dir, exist_ok=True)
+# データベースファイルの場所を設定
+DB_DIRECTORY = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data")
+os.makedirs(DB_DIRECTORY, exist_ok=True)
+DB_PATH = os.path.join(DB_DIRECTORY, "vsa.db")
 
-# DBファイルのパス
-db_path = os.path.join(app_data_dir, 'vsa.db')
-db_url = f"sqlite:///{db_path}"
+SQLALCHEMY_DATABASE_URL = f"sqlite:///{DB_PATH}"
 
-
-# エンジン作成
+# SQLiteの場合は connect_args={"check_same_thread": False} が必要
 engine = create_engine(
-    db_url, 
-    connect_args={"check_same_thread": False}  # SQLiteを複数スレッドで使用するための設定
+    SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False}
 )
-
-# セッションファクトリ:安全に手動でセッションを管理するためのファクトリ
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-# モデル定義のベースクラス
 Base = declarative_base()
 
+# 依存性注入用の関数
 def get_db():
     db = SessionLocal()
     try:

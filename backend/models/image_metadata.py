@@ -1,38 +1,26 @@
-from sqlalchemy import Column, Integer, String, DateTime, JSON, UniqueConstraint
-from sqlalchemy.sql import func
-from ..database import Base
+import datetime
+from sqlalchemy import Column, Integer, String, DateTime, JSON, ForeignKey, Table
+from sqlalchemy.orm import relationship
 
-class ImageMetadata(Base):
-    __tablename__ = "image_metadata"
+from database import Base
+
+class Image(Base):
+    __tablename__ = "images"
+
+    id = Column(Integer, primary_key=True, index=True)
+    filepath = Column(String, unique=True, nullable=False)
+    filename = Column(String, nullable=False)
+    created_date = Column(DateTime, default=datetime.datetime.utcnow)
+    modified_date = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
     
-    img_Id = Column(Integer, primary_key=True, index=True)
-    img_Path = Column(String, unique=True, index=True)
-    img_FileName = Column(String)
-    img_Date = Column(DateTime, index=True)
-    img_Users = Column(JSON)  # JSONとして保存
-    img_WorldName = Column(String, index=True)
-    img_WorldID = Column(String, index=True)
-    img_Sort = Column(Integer, nullable=True)
-    created_at = Column(DateTime, default=func.now())
-    updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
+    # VRChat関連メタデータ
+    world_name = Column(String, nullable=True, index=True)
+    world_id = Column(String, nullable=True, index=True)
+    img_date = Column(DateTime, nullable=True, index=True)
     
-    def __repr__(self):
-        return f"<ImageMetadata(img_Id={self.img_Id}, img_FileName='{self.img_FileName}')>"
+    # JSON形式で保存されるメタデータ（友達リストなど）
+    meta_data = Column(JSON, nullable=True)
     
-    def to_dict(self):
-        """
-        モデルを辞書形式に変換するユーティリティメソッド
-        JSONシリアライズ可能な形式で返す
-        """
-        return {
-            "img_Id": self.img_Id,
-            "img_Path": self.img_Path,
-            "img_FileName": self.img_FileName,
-            "img_Date": self.img_Date.isoformat() if self.img_Date else None,
-            "img_Users": self.img_Users,
-            "img_WorldName": self.img_WorldName,
-            "img_WorldID": self.img_WorldID,
-            "img_Sort": self.img_Sort,
-            "created_at": self.created_at.isoformat() if self.created_at else None,
-            "updated_at": self.updated_at.isoformat() if self.updated_at else None
-        }
+    # リレーションシップ（後で実装）
+    # albums = relationship("Album", secondary="image_album", back_populates="images")
+    # composites = relationship("Composite", secondary="image_composite", back_populates="images")
