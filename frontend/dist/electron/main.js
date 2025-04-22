@@ -84,7 +84,8 @@ const startPythonApiServer = async () => {
         let pythonExePath;
         if (isDev) {
             // 開発環境ではプロジェクトフォルダ内のPythonスクリプトを使用し、システムのPythonを呼び出す
-            pythonScriptPath = path.join(__dirname, '..', '..', 'backend', 'main.py');
+            const projectRoot = path.resolve(__dirname, '../../..'); // D:\programmstage\VSA を想定
+            pythonScriptPath = path.join(projectRoot, 'backend', 'main.py'); // D:\programmstage\VSA\backend\main.py を指す相対パス
             // 環境変数のPATHに登録されているpythonを使用
             pythonExePath = 'python';
         }
@@ -92,10 +93,6 @@ const startPythonApiServer = async () => {
             // 本番環境では同梱されたPythonとスクリプトを使用
             pythonScriptPath = path.join(process.resourcesPath, 'backend', 'main.py');
             pythonExePath = path.join(process.resourcesPath, 'python', 'python.exe');
-            // Windowsでない場合はpython3を使用
-            if (process.platform !== 'win32') {
-                pythonExePath = path.join(process.resourcesPath, 'python', 'bin', 'python3');
-            }
         }
         // アプリケーション設定ファイルのパス
         const userDataPath = electron_1.app.getPath('userData');
@@ -127,7 +124,8 @@ const startPythonApiServer = async () => {
             const output = data.toString().trim();
             console.log(`[Python] ${output}`);
             // サーバー起動完了メッセージをチェック
-            if (output.includes('Running on http://') && output.includes(`${appState.apiServerPort}`)) {
+            if ((output.includes('Running on http://') || output.includes('Uvicorn running on http://')) &&
+                output.includes(`${appState.apiServerPort}`)) {
                 appState.apiServerRunning = true;
                 console.log(`APIサーバーが起動しました: ポート ${appState.apiServerPort}`);
                 // メインウィンドウにサーバー起動通知を送信

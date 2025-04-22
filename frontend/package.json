@@ -2,15 +2,17 @@
   "name": "frontend",
   "version": "1.0.0",
   "description": "This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).",
-  "main": "test-electron.js",
+  "main": "dist/electron/main.js",
   "scripts": {
     "dev": "react-scripts start",
     "build": "react-scripts build",
     "start": "npm run build && npm run build-electron && electron ./dist/electron/main.js",
     "build-electron": "tsc -p electron/tsconfig.json",
     "watch-electron": "tsc -p electron/tsconfig.json -w",
-    "dev-electron": "concurrently \"npm run dev\" \"npm run watch-electron\" \"wait-on http://localhost:3000 && electron ./dist/electron/main.js\""
+    "dev-electron": "concurrently \"npm run watch-electron\" \"cross-env BROWSER=none npm run dev\" \"wait-on http://localhost:3000 && electron ./dist/electron/main.js --debug\"",
+    "clean": "rimraf build dist"
   },
+  "homepage": "./",
   "keywords": [],
   "author": "",
   "license": "ISC",
@@ -35,7 +37,9 @@
     "@types/react": "^19.1.2",
     "@types/react-dom": "^19.1.2",
     "concurrently": "^9.1.2",
+    "cross-env": "^7.0.3",
     "electron": "^35.1.5",
+    "rimraf": "^6.0.1",
     "wait-on": "^8.0.3"
   },
   "browserslist": {

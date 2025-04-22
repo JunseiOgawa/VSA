@@ -2,6 +2,7 @@ import json
 import os
 from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
+from contextlib import asynccontextmanager
 import uvicorn
 from sqlalchemy.orm import Session
 
@@ -50,15 +51,15 @@ app.add_middleware(
 )
 
 # 起動時にデータベースを初期化
-@app.on_event("startup")
-async def startup_event():
+@asynccontextmanager
+async def lifespan(app: FastAPI):
     init_db()
-    # デフォルト設定の初期化
     db = SessionLocal()
     try:
         init_default_settings(db)
     finally:
         db.close()
+    yield
 
 # ヘルスチェックエンドポイント
 @app.get("/")
@@ -74,4 +75,12 @@ app.include_router(templates.router)
 
 # アプリケーション実行
 if __name__ == "__main__":
-    uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=True)
+    # 引数からポート番号を取得（デフォルトは5000）
+    import argparse
+    parser = argparse.ArgumentParser(description='VSA Backend API')
+    parser.add_argument('--port', type=int, default=5000, help='Port number')
+    parser.add_argument('--appdata', type=str, help='Application data directory')
+    args = parser.parse_args()
+
+    # 指定されたポートでサーバーを起動
+    uvicorn.run("main:app", host="127.0.0.1", port=args.port, reload=True)

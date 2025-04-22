@@ -62,31 +62,27 @@ const startPythonApiServer = async (): Promise<boolean> => {
     }
 
     console.log('Pythonバックエンドサーバーを起動します...');
-    
+
     // バックエンドのパスを設定
     let pythonScriptPath: string;
     let pythonExePath: string;
-    
+
     if (isDev) {
       // 開発環境ではプロジェクトフォルダ内のPythonスクリプトを使用し、システムのPythonを呼び出す
-      pythonScriptPath = path.join(__dirname, '..', '..', 'backend', 'main.py');
+      const projectRoot = path.resolve(__dirname, '../../..'); // D:\programmstage\VSA を想定
+      pythonScriptPath = path.join(projectRoot, 'backend', 'main.py'); // D:\programmstage\VSA\backend\main.py を指す相対パス
       // 環境変数のPATHに登録されているpythonを使用
-      pythonExePath = 'python'; 
+      pythonExePath = 'python';
     } else {
       // 本番環境では同梱されたPythonとスクリプトを使用
       pythonScriptPath = path.join(process.resourcesPath, 'backend', 'main.py');
       pythonExePath = path.join(process.resourcesPath, 'python', 'python.exe');
-      
-      // Windowsでない場合はpython3を使用
-      if (process.platform !== 'win32') {
-        pythonExePath = path.join(process.resourcesPath, 'python', 'bin', 'python3');
-      }
     }
-    
+
     // アプリケーション設定ファイルのパス
     const userDataPath = app.getPath('userData');
     const appSettingsPath = path.join(userDataPath, 'appsettings.json');
-    
+
     // 設定ファイルが存在するか確認し、存在しない場合は初期化
     if (!fs.existsSync(appSettingsPath)) {
       const initialSettings = {
@@ -97,32 +93,33 @@ const startPythonApiServer = async (): Promise<boolean> => {
       };
       fs.writeFileSync(appSettingsPath, JSON.stringify(initialSettings, null, 2));
     }
-    
+
     // コマンドライン引数を構築
     const args = [
       pythonScriptPath,
       '--port', appState.apiServerPort.toString(),
       '--appdata', userDataPath
     ];
-    
+
     console.log(`バックエンドサーバー起動コマンド: ${pythonExePath} ${args.join(' ')}`);
-    
+
     // Pythonプロセスを起動
     pythonProcess = childProcess.spawn(pythonExePath, args, {
       stdio: ['pipe', 'pipe', 'pipe'], // stdin, stdout, stderr
       detached: false
     });
-    
+
     // 標準出力のリスナー
     pythonProcess.stdout?.on('data', (data) => {
       const output = data.toString().trim();
       console.log(`[Python] ${output}`);
-      
+
       // サーバー起動完了メッセージをチェック
-      if (output.includes('Running on http://') && output.includes(`${appState.apiServerPort}`)) {
+      if ((output.includes('Running on http://') || output.includes('Uvicorn running on http://')) && 
+          output.includes(`${appState.apiServerPort}`)) {
         appState.apiServerRunning = true;
         console.log(`APIサーバーが起動しました: ポート ${appState.apiServerPort}`);
-        
+
         // メインウィンドウにサーバー起動通知を送信
         if (mainWindow) {
           mainWindow.webContents.send('api-server-status', { 
@@ -132,23 +129,23 @@ const startPythonApiServer = async (): Promise<boolean> => {
         }
       }
     });
-    
+
     // 標準エラー出力のリスナー
     pythonProcess.stderr?.on('data', (data) => {
       console.error(`[Python Error] ${data.toString().trim()}`);
     });
-    
+
     // プロセス終了時のリスナー
     pythonProcess.on('close', (code) => {
       console.log(`Pythonプロセスが終了しました: コード ${code}`);
       appState.apiServerRunning = false;
       pythonProcess = null;
-      
+
       // メインウィンドウにサーバー停止通知を送信
       if (mainWindow) {
         mainWindow.webContents.send('api-server-status', { running: false });
       }
-      
+
       // 予期しない終了の場合は再起動を試みる
       if (code !== 0 && !appState.isQuitting) {
         console.log('APIサーバーが予期せず終了しました。再起動を試みます...');
@@ -157,12 +154,12 @@ const startPythonApiServer = async (): Promise<boolean> => {
         }, 3000); // 3秒後に再起動
       }
     });
-    
+
     // プロセスエラー時のリスナー
     pythonProcess.on('error', (err) => {
       console.error('Pythonプロセス起動エラー:', err);
       appState.apiServerRunning = false;
-      
+
       // メインウィンドウにエラー通知を送信
       if (mainWindow) {
         mainWindow.webContents.send('api-server-status', { 
@@ -171,11 +168,11 @@ const startPythonApiServer = async (): Promise<boolean> => {
         });
       }
     });
-    
+
     // 起動を待機（最大10秒）
     let attempts = 0;
     const maxAttempts = 20; // 10秒 (500ms x 20)
-    
+
     return new Promise<boolean>((resolve) => {
       const checkInterval = setInterval(() => {
         if (appState.apiServerRunning) {
